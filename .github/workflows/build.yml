@@ -34,6 +34,7 @@ jobs:
           sdkmanager --install "ndk;29.0.14206865"
           echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/29.0.14206865" >> $GITHUB_ENV
 
+      # FIX: Added '-x86_64' to the cache key to invalidate old caches lacking the x86_64 artifacts
       - name: Cache Rust/Cargo
         uses: actions/cache@v4
         with:
@@ -41,24 +42,22 @@ jobs:
             ~/.cargo
             ~/.rustup
             app/src/main/rust/slipstream-rust/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-x86_64-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-cargo-x86_64-
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-linux-android,armv7-linux-androideabi
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
 
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk --locked
-
+      # FIX: Added '-x86_64' to invalidate the old OpenSSL cache
       - name: Cache OpenSSL
         id: cache-openssl
         uses: actions/cache@v4
         with:
           path: ~/android-openssl
-          key: openssl-android-${{ env.OPENSSL_VERSION }}
+          key: openssl-android-x86_64-${{ env.OPENSSL_VERSION }}
 
       - name: Build OpenSSL for Android
         if: steps.cache-openssl.outputs.cache-hit != 'true'
@@ -70,7 +69,7 @@ jobs:
 
       - name: Verify OpenSSL installation
         run: |
-          for abi in arm64-v8a armeabi-v7a; do
+          for abi in arm64-v8a armeabi-v7a x86_64; do
             for lib in libssl.a libcrypto.a; do
               test -f ~/android-openssl/android-ssl/$abi/lib/$lib || { echo "Missing $abi/lib/$lib"; exit 1; }
             done
