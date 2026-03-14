@@ -31,8 +31,6 @@ SlipNet supports multiple tunnel types with optional SSH chaining:
 |-------------|----------|-------------|
 | **DNSTT** | KCP + Noise | Stable and reliable DNS tunneling |
 | **DNSTT + SSH** | KCP + Noise + SSH | DNSTT with SSH chaining for zero DNS leaks |
-| **NoizDNS** | KCP + Noise | DPI-resistant DNS tunneling |
-| **NoizDNS + SSH** | KCP + Noise + SSH | NoizDNS with SSH chaining |
 | **Slipstream** | QUIC | High-performance QUIC tunneling |
 | **Slipstream + SSH** | QUIC + SSH | Slipstream with SSH chaining |
 | **SSH** | SSH | Standalone SSH tunnel (no DNS tunneling) |
@@ -41,14 +39,13 @@ SlipNet supports multiple tunnel types with optional SSH chaining:
 | **DOH** | DNS over HTTPS | DNS-only encryption via HTTPS (RFC 8484) |
 | **Tor** | Tor Network | Connect via Tor with Snowflake, obfs4, Meek, or custom bridges |
 
-**Note:** DNSTT is the default and recommended tunnel type for most users. NoizDNS adds DPI resistance on top of DNSTT for censored networks. SSH variants add an extra layer of encryption and can prevent DNS leaks.
+**Note:** DNSTT is the default and recommended tunnel type for most users. SSH variants add an extra layer of encryption and can prevent DNS leaks.
 
 ## Features
 
 - **Modern UI**: Built entirely with Jetpack Compose and Material 3 design
-- **Multiple Tunnel Types**: DNSTT, NoizDNS, Slipstream, SSH, NaiveProxy, DOH, and Tor with optional SSH chaining
-- **NoizDNS**: DPI-resistant DNS tunneling with optional stealth mode
-- **SSH Tunneling**: Chain SSH through DNSTT, NoizDNS, Slipstream, or NaiveProxy, or use standalone SSH
+- **Multiple Tunnel Types**: DNSTT, Slipstream, SSH, NaiveProxy, DOH, and Tor with optional SSH chaining
+- **SSH Tunneling**: Chain SSH through DNSTT, Slipstream, or NaiveProxy, or use standalone SSH
 - **NaiveProxy**: Chromium-based HTTPS tunnel with authentic TLS fingerprinting to evade DPI
 - **DNS over HTTPS**: Encrypt DNS queries via HTTPS without tunneling other traffic
 - **DNS Transport Selection**: Choose UDP, DoT, or DoH for DNSTT DNS resolution
@@ -287,14 +284,13 @@ SlipNet follows Clean Architecture principles with three main layers:
 Each server profile contains:
 
 - **Name**: Display name for the profile
-- **Tunnel Type**: DNSTT, NoizDNS, Slipstream, SSH, NaiveProxy, DOH, Tor, or their SSH variants
+- **Tunnel Type**: DNSTT, Slipstream, SSH, NaiveProxy, DOH, Tor, or their SSH variants
 - **Domain**: Server domain for DNS tunneling
 - **Resolvers**: DNS resolver configurations
 
-#### DNSTT / NoizDNS settings:
+#### DNSTT settings:
 - **Public Key**: Server's Noise protocol public key (hex format)
 - **DNS Transport**: UDP, TCP, DoT (DNS over TLS), or DoH (DNS over HTTPS)
-- **Stealth Mode** (NoizDNS only): Trades speed for harder DPI detection
 
 #### Slipstream-specific settings:
 - **Congestion Control**: QUIC congestion control algorithm (BBR, DCUBIC)
@@ -307,7 +303,7 @@ Each server profile contains:
 - **Proxy Username**: HTTP proxy authentication username
 - **Proxy Password**: HTTP proxy authentication password
 
-#### SSH settings (SSH, DNSTT+SSH, NoizDNS+SSH, Slipstream+SSH, NaiveProxy+SSH):
+#### SSH settings (SSH, DNSTT+SSH, Slipstream+SSH, NaiveProxy+SSH):
 - **SSH Host**: SSH server address
 - **SSH Port**: SSH server port (default 22)
 - **SSH Username/Password**: Authentication credentials
