@@ -90,10 +90,6 @@ class ConfigImporter @Inject constructor() {
         private const val ENCRYPTED_SCHEME = "slipnet-enc://"
         private const val MODE_SLIPSTREAM = "ss"
         private const val MODE_SLIPSTREAM_SSH = "slipstream_ssh"
-        private const val MODE_DNSTT = "dnstt"
-        private const val MODE_DNSTT_SSH = "dnstt_ssh"
-        private const val MODE_NOIZDNS = "sayedns"
-        private const val MODE_NOIZDNS_SSH = "sayedns_ssh"
         private const val MODE_SSH = "ssh"
         private const val MODE_DOH = "doh"
         private const val MODE_SNOWFLAKE = "snowflake"
@@ -326,10 +322,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -408,10 +402,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -495,10 +487,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -585,10 +575,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -687,10 +675,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -789,10 +775,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -844,7 +828,7 @@ class ConfigImporter @Inject constructor() {
             }
         }
 
-        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
+        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
             if (sshUsername.isBlank()) {
                 return ProfileParseResult.Error("Line $lineNum: ${tunnelType.displayName} profiles require SSH username")
             }
@@ -887,10 +871,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -943,7 +925,7 @@ class ConfigImporter @Inject constructor() {
             }
         }
 
-        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
+        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
             if (sshUsername.isBlank()) {
                 return ProfileParseResult.Error("Line $lineNum: ${tunnelType.displayName} profiles require SSH username")
             }
@@ -996,10 +978,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -1038,7 +1018,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val resolvers = parseResolvers(resolversStr)
-        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS || tunnelType == TunnelType.NOIZDNS_SSH
+        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH
         val skipResolvers = tunnelType == TunnelType.SSH || tunnelType == TunnelType.DOH ||
                 tunnelType == TunnelType.SNOWFLAKE ||
                 (isDnsttBased && dnsTransport == DnsTransport.DOH)
@@ -1057,7 +1037,7 @@ class ConfigImporter @Inject constructor() {
             }
         }
 
-        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
+        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
             if (sshUsername.isBlank()) {
                 return ProfileParseResult.Error("Line $lineNum: ${tunnelType.displayName} profiles require SSH username")
             }
@@ -1126,10 +1106,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -1175,7 +1153,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val resolvers = parseResolvers(resolversStr)
-        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS || tunnelType == TunnelType.NOIZDNS_SSH
+        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH
         val skipResolvers = tunnelType == TunnelType.SSH || tunnelType == TunnelType.DOH ||
                 tunnelType == TunnelType.SNOWFLAKE ||
                 (isDnsttBased && dnsTransport == DnsTransport.DOH)
@@ -1194,7 +1172,7 @@ class ConfigImporter @Inject constructor() {
             }
         }
 
-        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
+        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
             if (sshUsername.isBlank()) {
                 return ProfileParseResult.Error("Line $lineNum: ${tunnelType.displayName} profiles require SSH username")
             }
@@ -1258,10 +1236,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -1312,7 +1288,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val resolvers = parseResolvers(resolversStr)
-        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS || tunnelType == TunnelType.NOIZDNS_SSH
+        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH
         val skipResolvers = tunnelType == TunnelType.SSH || tunnelType == TunnelType.DOH ||
                 tunnelType == TunnelType.SNOWFLAKE ||
                 (isDnsttBased && dnsTransport == DnsTransport.DOH)
@@ -1331,7 +1307,7 @@ class ConfigImporter @Inject constructor() {
             }
         }
 
-        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
+        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
             if (sshUsername.isBlank()) {
                 return ProfileParseResult.Error("Line $lineNum: ${tunnelType.displayName} profiles require SSH username")
             }
@@ -1397,10 +1373,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -1452,7 +1426,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val resolvers = parseResolvers(resolversStr)
-        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS || tunnelType == TunnelType.NOIZDNS_SSH
+        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH
         val skipResolvers = tunnelType == TunnelType.SSH || tunnelType == TunnelType.DOH ||
                 tunnelType == TunnelType.SNOWFLAKE ||
                 (isDnsttBased && dnsTransport == DnsTransport.DOH)
@@ -1471,7 +1445,7 @@ class ConfigImporter @Inject constructor() {
             }
         }
 
-        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
+        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
             if (sshUsername.isBlank()) {
                 return ProfileParseResult.Error("Line $lineNum: ${tunnelType.displayName} profiles require SSH username")
             }
@@ -1537,10 +1511,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -1598,7 +1570,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val resolvers = parseResolvers(resolversStr)
-        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS || tunnelType == TunnelType.NOIZDNS_SSH
+        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH
         val skipResolvers = tunnelType == TunnelType.SSH || tunnelType == TunnelType.DOH ||
                 tunnelType == TunnelType.SNOWFLAKE || tunnelType == TunnelType.NAIVE_SSH ||
                 tunnelType == TunnelType.NAIVE ||
@@ -1618,7 +1590,7 @@ class ConfigImporter @Inject constructor() {
             }
         }
 
-        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
+        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
             if (sshUsername.isBlank()) {
                 return ProfileParseResult.Error("Line $lineNum: ${tunnelType.displayName} profiles require SSH username")
             }
@@ -1694,10 +1666,8 @@ class ConfigImporter @Inject constructor() {
         val tunnelType = when (tunnelTypeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            MODE_DNSTT -> TunnelType.DNSTT
-            MODE_DNSTT_SSH -> TunnelType.DNSTT_SSH
-            MODE_NOIZDNS -> TunnelType.NOIZDNS
-            MODE_NOIZDNS_SSH -> TunnelType.NOIZDNS_SSH
+            "dnstt", "sayedns" -> TunnelType.DNSTT
+            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
             MODE_SSH -> TunnelType.SSH
             MODE_DOH -> TunnelType.DOH
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
@@ -1756,7 +1726,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val resolvers = parseResolvers(resolversStr)
-        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS || tunnelType == TunnelType.NOIZDNS_SSH
+        val isDnsttBased = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH
         val skipResolvers = tunnelType == TunnelType.SSH || tunnelType == TunnelType.DOH ||
                 tunnelType == TunnelType.SNOWFLAKE || tunnelType == TunnelType.NAIVE_SSH ||
                 tunnelType == TunnelType.NAIVE ||
@@ -1776,7 +1746,7 @@ class ConfigImporter @Inject constructor() {
             }
         }
 
-        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.NOIZDNS_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
+        if (tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.SSH || tunnelType == TunnelType.NAIVE_SSH) {
             if (sshUsername.isBlank()) {
                 return ProfileParseResult.Error("Line $lineNum: ${tunnelType.displayName} profiles require SSH username")
             }

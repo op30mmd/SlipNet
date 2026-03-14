@@ -213,8 +213,7 @@ fun ProfileListItem(
                         is PingResult.Success -> {
                             val isDnsTunneled = profile.tunnelType in listOf(
                                 TunnelType.DNSTT, TunnelType.DNSTT_SSH,
-                                TunnelType.SLIPSTREAM, TunnelType.SLIPSTREAM_SSH,
-                                TunnelType.NOIZDNS, TunnelType.NOIZDNS_SSH
+                                TunnelType.SLIPSTREAM, TunnelType.SLIPSTREAM_SSH
                             )
                             val latencyColor = if (isDnsTunneled) {
                                 when {
@@ -270,7 +269,6 @@ fun ProfileListItem(
                                 ?: profile.dohUrl
                             TunnelType.SSH -> "${profile.domain}:${profile.sshPort}"
                             TunnelType.DNSTT_SSH -> "${profile.domain} via SSH"
-                            TunnelType.NOIZDNS_SSH -> "${profile.domain} via SSH"
                             TunnelType.NAIVE_SSH -> "${profile.domain}:${profile.naivePort} via SSH"
                             TunnelType.NAIVE -> "${profile.domain}:${profile.naivePort}"
                             TunnelType.SNOWFLAKE -> "Tor Network"
