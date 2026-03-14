@@ -2426,10 +2426,8 @@ class SlipNetVpnService : VpnService() {
             TunnelType.SLIPSTREAM -> try { SlipstreamBridge.isNativeRunning() } catch (e: Exception) { false }
             TunnelType.SLIPSTREAM_SSH -> try { SlipstreamBridge.isNativeRunning() } catch (e: Exception) { false }
             TunnelType.DNSTT -> try { DnsttBridge.isRunning() } catch (e: Exception) { false }
-            TunnelType.NOIZDNS -> try { DnsttBridge.isRunning() } catch (e: Exception) { false }
             TunnelType.SSH -> SshTunnelBridge.isRunning()
             TunnelType.DNSTT_SSH -> try { DnsttBridge.isRunning() } catch (e: Exception) { false }
-            TunnelType.NOIZDNS_SSH -> try { DnsttBridge.isRunning() } catch (e: Exception) { false }
             TunnelType.DOH -> DohBridge.isRunning()
             TunnelType.NAIVE_SSH -> NaiveBridge.isRunning()
             TunnelType.NAIVE -> NaiveBridge.isRunning()
@@ -2585,12 +2583,6 @@ class SlipNetVpnService : VpnService() {
                         Log.e(TAG, "Error checking DNSTT state: ${e.message}")
                         true // Assume it's running if we can't check
                     }
-                    TunnelType.NOIZDNS -> try {
-                        DnsttBridge.isRunning()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error checking NoizDNS state: ${e.message}")
-                        true
-                    }
                     TunnelType.SSH -> {
                         // Check default instance or any chain instance
                         SshTunnelBridge.isRunning() || (0..3).any {
@@ -2601,12 +2593,6 @@ class SlipNetVpnService : VpnService() {
                         DnsttBridge.isRunning()
                     } catch (e: Exception) {
                         Log.e(TAG, "Error checking DNSTT state: ${e.message}")
-                        true
-                    }
-                    TunnelType.NOIZDNS_SSH -> try {
-                        DnsttBridge.isRunning()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error checking NoizDNS state: ${e.message}")
                         true
                     }
                     TunnelType.DOH -> DohBridge.isRunning()
@@ -2737,7 +2723,6 @@ class SlipNetVpnService : VpnService() {
                 // For SSH-based tunnels: actively probe the SSH session every ~30s.
                 val usesSsh = currentTunnelType == TunnelType.SSH ||
                         currentTunnelType == TunnelType.DNSTT_SSH ||
-                        currentTunnelType == TunnelType.NOIZDNS_SSH ||
                         currentTunnelType == TunnelType.SLIPSTREAM_SSH ||
                         currentTunnelType == TunnelType.NAIVE_SSH
                 if (usesSsh && healthCheckCount % SSH_PROBE_INTERVAL == 0) {
@@ -2753,10 +2738,10 @@ class SlipNetVpnService : VpnService() {
 
                 // For tunnels with DNS worker pools: warn when all workers are dead.
                 val dnsPoolDead = when (currentTunnelType) {
-                    TunnelType.DNSTT, TunnelType.NOIZDNS -> DnsttSocksBridge.isDnsPoolDead()
+                    TunnelType.DNSTT -> DnsttSocksBridge.isDnsPoolDead()
                     TunnelType.SLIPSTREAM -> SlipstreamSocksBridge.isDnsPoolDead()
                     TunnelType.NAIVE -> NaiveSocksBridge.isDnsPoolDead()
-                    TunnelType.SSH, TunnelType.DNSTT_SSH, TunnelType.NOIZDNS_SSH,
+                    TunnelType.SSH, TunnelType.DNSTT_SSH,
                     TunnelType.SLIPSTREAM_SSH, TunnelType.NAIVE_SSH -> SshTunnelBridge.isDnsPoolDead()
                     else -> false
                 }
@@ -2764,7 +2749,6 @@ class SlipNetVpnService : VpnService() {
                     dnsPoolDeadChecks++
                     val isDnsTunneled = currentTunnelType in listOf(
                         TunnelType.DNSTT, TunnelType.DNSTT_SSH,
-                        TunnelType.NOIZDNS, TunnelType.NOIZDNS_SSH,
                         TunnelType.SLIPSTREAM, TunnelType.SLIPSTREAM_SSH
                     )
                     val threshold = if (isDnsTunneled) DNS_POOL_DEAD_THRESHOLD else DNS_POOL_DEAD_THRESHOLD_SOCKS
@@ -2786,7 +2770,6 @@ class SlipNetVpnService : VpnService() {
                 // getting nothing back, the tunnel is dead (connected but can't transfer data).
                 val isDnsTunneledStall = currentTunnelType in listOf(
                     TunnelType.DNSTT, TunnelType.DNSTT_SSH,
-                    TunnelType.NOIZDNS, TunnelType.NOIZDNS_SSH,
                     TunnelType.SLIPSTREAM, TunnelType.SLIPSTREAM_SSH
                 )
                 val stallCheckInterval = if (isDnsTunneledStall) TUNNEL_STALL_CHECK_INTERVAL else TUNNEL_STALL_CHECK_INTERVAL_SOCKS
@@ -3023,8 +3006,8 @@ class SlipNetVpnService : VpnService() {
                 var remoteDns = preferencesDataStore.getEffectiveRemoteDns().first()
                 var remoteDnsFallback = preferencesDataStore.getEffectiveRemoteDnsFallback().first()
 
-                // DNSTT+SSH / NoizDNS+SSH: default to server's local resolver (same override as initial connect)
-                if (currentTunnelType == TunnelType.DNSTT_SSH || currentTunnelType == TunnelType.NOIZDNS_SSH) {
+                // DNSTT+SSH: default to server's local resolver (same override as initial connect)
+                if (currentTunnelType == TunnelType.DNSTT_SSH) {
                     val dnsMode = preferencesDataStore.remoteDnsMode.first()
                     if (dnsMode == "default") {
                         remoteDns = "127.0.0.53"
@@ -3216,7 +3199,7 @@ class SlipNetVpnService : VpnService() {
                         handleTunnelFailure("failed to reconnect after network change")
                         return@launch
                     }
-                } else if (currentTunnelType == TunnelType.DNSTT || currentTunnelType == TunnelType.NOIZDNS) {
+                } else if (currentTunnelType == TunnelType.DNSTT) {
                     // DNSTT: restart tunnel on internal port + bridge on proxyPort
                     val dnsttPort = proxyPort + 1
 

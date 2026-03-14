@@ -1,4 +1,4 @@
-// slipnet is a cross-platform CLI client for SlipNet/NoizDNS.
+// slipnet is a cross-platform CLI client for SlipNet.
 //
 // Usage:
 //
@@ -304,7 +304,7 @@ func connectWithParams(uri string, portOverride int, hostOverride string, dnsOve
 		return
 	case "ssh", "doh", "snowflake", "naive_ssh", "naive", "socks5":
 		log.Fatalf("This config uses tunnel type %q which is not supported by the CLI.\n"+
-			"SlipNet CLI supports DNSTT, NoizDNS, and Slipstream tunnel types.\n"+
+			"SlipNet CLI supports DNSTT and Slipstream tunnel types.\n"+
 			"Use the SlipNet app for other tunnel types.", profile.TunnelType)
 	default:
 		if profile.TunnelType != "" {

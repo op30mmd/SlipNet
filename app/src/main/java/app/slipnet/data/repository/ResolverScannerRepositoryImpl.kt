@@ -808,7 +808,7 @@ class ResolverScannerRepositoryImpl @Inject constructor(
         else -> 3
     }
 
-    /** Format resolver address for DNSTT/NoizDNS based on DNS transport. Returns null for DoH.
+    /** Format resolver address for DNSTT based on DNS transport. Returns null for DoH.
      *  Resolves domain names to IPs since Go on Android cannot resolve hostnames. */
     private fun formatDnsServer(host: String, port: Int, transport: DnsTransport): String? {
         val resolvedHost = VpnRepositoryImpl.resolveHost(host)
@@ -821,7 +821,7 @@ class ResolverScannerRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Test a single resolver using an ephemeral DNSTT/NoizDNS Go client.
+     * Test a single resolver using an ephemeral DNSTT Go client.
      * Creates its own DnsttClient on a unique port — safe for concurrent use.
      * Does NOT touch the singleton DnsttBridge or DnsttSocksBridge.
      */

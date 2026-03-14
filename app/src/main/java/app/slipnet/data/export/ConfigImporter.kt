@@ -313,13 +313,8 @@ class ConfigImporter @Inject constructor() {
         return ProfileParseResult.Success(profile)
     }
 
-    private fun parseProfileV2(fields: List<String>, lineNum: Int): ProfileParseResult {
-        if (fields.size < V2_FIELD_COUNT) {
-            return ProfileParseResult.Error("Line $lineNum: Invalid v2 format (expected $V2_FIELD_COUNT fields, got ${fields.size})")
-        }
-
-        val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
+    private fun parseTunnelType(typeStr: String): TunnelType? {
+        return when (typeStr) {
             MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
             MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
             "dnstt", "sayedns" -> TunnelType.DNSTT
@@ -329,10 +324,17 @@ class ConfigImporter @Inject constructor() {
             MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
             MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
             MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
+            else -> null
         }
+    }
+
+    private fun parseProfileV2(fields: List<String>, lineNum: Int): ProfileParseResult {
+        if (fields.size < V2_FIELD_COUNT) {
+            return ProfileParseResult.Error("Line $lineNum: Invalid v2 format (expected $V2_FIELD_COUNT fields, got ${fields.size})")
+        }
+
+        val tunnelTypeStr = fields[1]
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -399,20 +401,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -484,20 +473,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -572,20 +548,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -672,20 +635,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -772,20 +722,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -868,20 +805,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -975,20 +899,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -1103,20 +1014,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -1233,20 +1131,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -1370,20 +1255,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -1508,20 +1380,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
@@ -1663,20 +1522,7 @@ class ConfigImporter @Inject constructor() {
         }
 
         val tunnelTypeStr = fields[1]
-        val tunnelType = when (tunnelTypeStr) {
-            MODE_SLIPSTREAM -> TunnelType.SLIPSTREAM
-            MODE_SLIPSTREAM_SSH -> TunnelType.SLIPSTREAM_SSH
-            "dnstt", "sayedns" -> TunnelType.DNSTT
-            "dnstt_ssh", "sayedns_ssh" -> TunnelType.DNSTT_SSH
-            MODE_SSH -> TunnelType.SSH
-            MODE_DOH -> TunnelType.DOH
-            MODE_SNOWFLAKE -> TunnelType.SNOWFLAKE
-            MODE_NAIVE_SSH -> TunnelType.NAIVE_SSH
-            MODE_NAIVE -> TunnelType.NAIVE
-            else -> {
-                return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
-            }
-        }
+        val tunnelType = parseTunnelType(tunnelTypeStr) ?: return ProfileParseResult.Warning("Line $lineNum: Unsupported tunnel type '$tunnelTypeStr', skipping")
 
         val name = fields[2]
         val domain = fields[3]
