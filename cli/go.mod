@@ -2,7 +2,10 @@ module slipnet-cli
 
 go 1.24.0
 
-require noizdns v0.0.0
+require (
+	dnstt-mobile v0.0.0
+	golang.org/x/net v0.49.0
+)
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
@@ -17,7 +20,6 @@ require (
 	github.com/xtaci/smux v1.5.50 // indirect
 	gitlab.torproject.org/tpo/anti-censorship/pluggable-transports/goptlib v1.6.0 // indirect
 	golang.org/x/crypto v0.47.0 // indirect
-	golang.org/x/net v0.49.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
@@ -25,6 +27,6 @@ require (
 )
 
 replace (
-	noizdns => ../noizdns
+	dnstt-mobile => ../dnstt-mobile
 	www.bamsoftware.com/git/dnstt.git => ../dnstt
 )

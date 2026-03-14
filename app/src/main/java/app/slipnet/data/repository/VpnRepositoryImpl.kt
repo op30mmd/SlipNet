@@ -177,48 +177,6 @@ class VpnRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Start the NoizDNS SOCKS5 proxy. Same as DNSTT but with NoizMode enabled
-     * for DPI evasion (hex encoding, shorter labels, record type mixing, jitter,
-     * cover traffic).
-     */
-    suspend fun startNoizdnsProxy(
-        profile: ServerProfile,
-        portOverride: Int? = null,
-        hostOverride: String? = null
-    ): Result<Unit> = withContext(Dispatchers.IO) {
-        connectedProfile = profile
-
-        // Resolve domain names to IPs — Go on Android cannot resolve hostnames.
-        val dnsServer = formatDnsServerAddress(profile)
-
-        val proxyPort = portOverride ?: preferencesDataStore.proxyListenPort.first()
-        val proxyHost = hostOverride ?: preferencesDataStore.proxyListenAddress.first()
-
-        val result = DnsttBridge.startClient(
-            dnsServer = dnsServer,
-            tunnelDomain = profile.domain,
-            publicKey = profile.dnsttPublicKey,
-            listenPort = proxyPort,
-            listenHost = proxyHost,
-            authoritativeMode = profile.dnsttAuthoritative,
-            noizMode = true,
-            stealthMode = profile.noizdnsStealth,
-            maxPayload = profile.dnsPayloadSize
-        )
-
-        if (result.isSuccess) {
-            Log.i(TAG, "NoizDNS SOCKS5 proxy started successfully")
-            currentTunnelType = TunnelType.NOIZDNS
-            Result.success(Unit)
-        } else {
-            val error = result.exceptionOrNull()?.message ?: "Failed to start NoizDNS proxy"
-            connectedProfile = null
-            Log.e(TAG, "Failed to start NoizDNS proxy: $error")
-            Result.failure(Exception(error))
-        }
-    }
-
-    /**
      * Start the DoH SOCKS5 proxy. Call this AFTER establishing the VPN interface.
      * DNS queries are encrypted via HTTPS; all other traffic flows directly.
      */
@@ -501,23 +459,12 @@ class VpnRepositoryImpl @Inject constructor(
                 DnsttBridge.stopClient()
                 DnsDoHProxy.stop()
             }
-            TunnelType.NOIZDNS -> {
-                Log.d(TAG, "Stopping NoizDNS proxy")
-                DnsttBridge.stopClient()
-                DnsDoHProxy.stop()
-            }
             TunnelType.SSH -> {
                 Log.d(TAG, "Stopping SSH proxy")
                 SshTunnelBridge.stop()
             }
             TunnelType.DNSTT_SSH -> {
                 Log.d(TAG, "Stopping DNSTT+SSH: SSH first, then DNSTT")
-                SshTunnelBridge.stop()
-                DnsttBridge.stopClient()
-                DnsDoHProxy.stop()
-            }
-            TunnelType.NOIZDNS_SSH -> {
-                Log.d(TAG, "Stopping NoizDNS+SSH: SSH first, then NoizDNS")
                 SshTunnelBridge.stop()
                 DnsttBridge.stopClient()
                 DnsDoHProxy.stop()
@@ -737,14 +684,14 @@ class VpnRepositoryImpl @Inject constructor(
                 )
                 return
             }
-            TunnelType.DNSTT, TunnelType.NOIZDNS -> {
+            TunnelType.DNSTT -> {
                 _trafficStats.value = TrafficStats(
                     bytesSent = DnsttSocksBridge.getTunnelTxBytes(),
                     bytesReceived = DnsttSocksBridge.getTunnelRxBytes()
                 )
                 return
             }
-            TunnelType.SSH, TunnelType.DNSTT_SSH, TunnelType.NOIZDNS_SSH,
+            TunnelType.SSH, TunnelType.DNSTT_SSH,
             TunnelType.SLIPSTREAM_SSH, TunnelType.NAIVE_SSH -> {
                 _trafficStats.value = TrafficStats(
                     bytesSent = SshTunnelBridge.getTunnelTxBytes(),

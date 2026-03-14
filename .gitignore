@@ -102,9 +102,6 @@ app/release/
 # DNS Multiplexer (separate repo: anonvector/DNS-Multiplexer)
 dns-multiplexer/
 
-# NoizDNS deploy (separate repo)
-noizdns-deploy/
-
 # Embedded slipstream binary (placed by CI, not committed)
 cli/embedded/slipstream-client
 cli/embedded/slipstream-client.exe

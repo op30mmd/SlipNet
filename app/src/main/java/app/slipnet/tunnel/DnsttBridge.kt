@@ -53,8 +53,6 @@ object DnsttBridge {
         listenPort: Int,
         listenHost: String = "127.0.0.1",
         authoritativeMode: Boolean = false,
-        noizMode: Boolean = false,
-        stealthMode: Boolean = false,
         maxPayload: Int = 0
     ): Result<Unit> {
         Log.i(TAG, "========================================")
@@ -64,8 +62,6 @@ object DnsttBridge {
         Log.i(TAG, "  Public Key: ${publicKey.take(16)}...")
         Log.i(TAG, "  Listen: $listenHost:$listenPort")
         Log.i(TAG, "  Authoritative Mode: $authoritativeMode")
-        Log.i(TAG, "  NoizMode: $noizMode")
-        Log.i(TAG, "  StealthMode: $stealthMode")
         Log.i(TAG, "========================================")
 
         // Validate inputs
@@ -109,13 +105,6 @@ object DnsttBridge {
             newClient.setAuthoritativeMode(authoritativeMode)
             if (maxPayload > 0) {
                 newClient.setMaxPayload(maxPayload.toLong())
-            }
-            if (noizMode) {
-                newClient.setNoizMode(true)
-                newClient.setDeviceManufacturer(Build.MANUFACTURER)
-                if (stealthMode) {
-                    newClient.setStealthMode(true)
-                }
             }
             client = newClient
             currentPort = actualPort

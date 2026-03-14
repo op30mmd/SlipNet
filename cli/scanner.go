@@ -671,11 +671,7 @@ func runE2EPhase(resolvers []string, config *E2EConfig) {
 	fmt.Println("  ── E2E Tunnel Test ──────────────────────────────")
 	fmt.Println()
 	fmt.Printf("  Testing %d resolvers through real tunnel...\n", len(resolvers))
-	if config.NoizMode {
-		fmt.Println("  Mode: NoizDNS")
-	} else {
-		fmt.Println("  Mode: DNSTT")
-	}
+	fmt.Println("  Mode: DNSTT")
 	fmt.Println()
 
 	total := len(resolvers)

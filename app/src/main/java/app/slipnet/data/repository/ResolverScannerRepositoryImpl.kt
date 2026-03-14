@@ -764,8 +764,6 @@ class ResolverScannerRepositoryImpl @Inject constructor(
                 testResolverSlipstream(resolverHost, resolverPort, profile, testUrl, timeoutMs, onPhaseUpdate)
             TunnelType.DNSTT, TunnelType.DNSTT_SSH ->
                 testResolverDnstt(resolverHost, resolverPort, profile, testUrl, timeoutMs, onPhaseUpdate)
-            TunnelType.NOIZDNS, TunnelType.NOIZDNS_SSH ->
-                testResolverDnstt(resolverHost, resolverPort, profile, testUrl, timeoutMs, onPhaseUpdate, noizMode = true)
             else ->
                 E2eTestResult(errorMessage = "Unsupported tunnel type: ${profile.tunnelType.displayName}")
         }
@@ -800,8 +798,6 @@ class ResolverScannerRepositoryImpl @Inject constructor(
                 testResolverSlipstream(resolverHost, resolverPort, profile, testUrl, timeoutMs, onPhaseUpdate)
             TunnelType.DNSTT, TunnelType.DNSTT_SSH ->
                 testResolverDnsttIsolated(resolverHost, resolverPort, profile, testUrl, timeoutMs, onPhaseUpdate)
-            TunnelType.NOIZDNS, TunnelType.NOIZDNS_SSH ->
-                testResolverDnsttIsolated(resolverHost, resolverPort, profile, testUrl, timeoutMs, onPhaseUpdate, noizMode = true)
             else ->
                 E2eTestResult(errorMessage = "Unsupported tunnel type: ${profile.tunnelType.displayName}")
         }
@@ -835,11 +831,10 @@ class ResolverScannerRepositoryImpl @Inject constructor(
         profile: ServerProfile,
         testUrl: String,
         timeoutMs: Long,
-        onPhaseUpdate: (String) -> Unit,
-        noizMode: Boolean = false
+        onPhaseUpdate: (String) -> Unit
     ): E2eTestResult = withContext(Dispatchers.IO) {
         val totalStart = System.currentTimeMillis()
-        val tunnelName = if (noizMode) "NoizDNS" else "DNSTT"
+        val tunnelName = "DNSTT"
         val dnsttPort = findFreePort()
         var client: mobile.DnsttClient? = null
         try {
@@ -857,10 +852,6 @@ class ResolverScannerRepositoryImpl @Inject constructor(
             newClient.setAuthoritativeMode(profile.dnsttAuthoritative)
             if (profile.dnsPayloadSize > 0) {
                 newClient.setMaxPayload(profile.dnsPayloadSize.toLong())
-            }
-            if (noizMode) {
-                newClient.setNoizMode(true)
-                newClient.setDeviceManufacturer(android.os.Build.MANUFACTURER)
             }
             client = newClient
             newClient.start()
@@ -906,7 +897,7 @@ class ResolverScannerRepositoryImpl @Inject constructor(
                 )
             }
 
-            val isSshVariant = profile.tunnelType == TunnelType.DNSTT_SSH || profile.tunnelType == TunnelType.NOIZDNS_SSH
+            val isSshVariant = profile.tunnelType == TunnelType.DNSTT_SSH
             val tunnelSetupMs = System.currentTimeMillis() - totalStart
 
             // Phase 3: Verify connectivity
@@ -1073,11 +1064,10 @@ class ResolverScannerRepositoryImpl @Inject constructor(
         profile: ServerProfile,
         testUrl: String,
         timeoutMs: Long,
-        onPhaseUpdate: (String) -> Unit,
-        noizMode: Boolean = false
+        onPhaseUpdate: (String) -> Unit
     ): E2eTestResult = withContext(Dispatchers.IO) {
         val totalStart = System.currentTimeMillis()
-        val tunnelName = if (noizMode) "NoizDNS" else "DNSTT"
+        val tunnelName = "DNSTT"
         // Same two-layer stack as VPN: DnsttBridge on one port, DnsttSocksBridge on another
         val dnsttPort = findFreePort()
         val bridgePort = findFreePort()
@@ -1097,8 +1087,7 @@ class ResolverScannerRepositoryImpl @Inject constructor(
                 publicKey = profile.dnsttPublicKey,
                 listenPort = dnsttPort,
                 listenHost = "127.0.0.1",
-                authoritativeMode = profile.dnsttAuthoritative,
-                noizMode = noizMode
+                authoritativeMode = profile.dnsttAuthoritative
             )
 
             if (startResult.isFailure) {
@@ -1155,7 +1144,7 @@ class ResolverScannerRepositoryImpl @Inject constructor(
                 )
             }
 
-            val isSshVariant = profile.tunnelType == TunnelType.DNSTT_SSH || profile.tunnelType == TunnelType.NOIZDNS_SSH
+            val isSshVariant = profile.tunnelType == TunnelType.DNSTT_SSH
 
             if (!isSshVariant) {
                 // Non-SSH: start DnsttSocksBridge (same as VPN flow) to handle

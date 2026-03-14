@@ -66,9 +66,6 @@ SlipNet supports multiple tunnel types with optional SSH chaining:
 
 To use this client, you must have a compatible server. Please configure your server using one of the following deployment scripts:
 
-**NoizDNS (recommended for censored networks):**
-[**noizdns-deploy**](https://github.com/anonvector/noizdns-deploy) — One-click NoizDNS server with interactive management menu. Auto-detects both DNSTT and NoizDNS clients.
-
 **DNSTT + Slipstream (combined):**
 [**dnstm**](https://github.com/net2share/dnstm) — DNS Tunnel Manager supporting both Slipstream and DNSTT with SOCKS5, SSH, and Shadowsocks backends
 
