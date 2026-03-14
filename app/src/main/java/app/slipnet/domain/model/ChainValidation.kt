@@ -15,7 +15,7 @@ enum class LayerOutput {
  *
  * Bridges are Kotlin object singletons, so a chain cannot contain two profiles
  * that use the same underlying bridge. The bridge groups are:
- * - DnsttBridge: DNSTT, NOIZDNS
+ * - DnsttBridge: DNSTT
  * - SlipstreamBridge: SLIPSTREAM
  * - SshTunnelBridge: SSH (and the SSH layer in combo types)
  * - NaiveBridge: NAIVE
@@ -23,34 +23,34 @@ enum class LayerOutput {
  *
  * In a chain, combo types (DNSTT_SSH, SLIPSTREAM_SSH, etc.) are NOT used.
  * Each profile contributes exactly one layer using its single-layer tunnel type.
- * Valid single-layer types for chaining: DNSTT, NOIZDNS, SLIPSTREAM, SSH, NAIVE, SNOWFLAKE, DOH.
+ * Valid single-layer types for chaining: DNSTT, SLIPSTREAM, SSH, NAIVE, SNOWFLAKE, DOH.
  */
 object ChainValidation {
 
     /** Tunnel types that can be used in a chain (single-layer types only). */
     val CHAINABLE_TYPES = setOf(
-        TunnelType.DNSTT, TunnelType.NOIZDNS, TunnelType.SLIPSTREAM,
+        TunnelType.DNSTT, TunnelType.SLIPSTREAM,
         TunnelType.SSH, TunnelType.NAIVE, TunnelType.SNOWFLAKE, TunnelType.DOH,
         TunnelType.SOCKS5
     )
 
     /** Tunnel types that can serve as an intermediate (non-final) layer. */
     val CAN_BE_INTERMEDIATE = setOf(
-        TunnelType.DNSTT, TunnelType.NOIZDNS, TunnelType.SLIPSTREAM,
+        TunnelType.DNSTT, TunnelType.SLIPSTREAM,
         TunnelType.NAIVE, TunnelType.SNOWFLAKE, TunnelType.SOCKS5,
         TunnelType.SSH
     )
 
     /** Tunnel types that can serve as the final (innermost) layer. */
     val CAN_BE_FINAL = setOf(
-        TunnelType.SSH, TunnelType.DNSTT, TunnelType.NOIZDNS,
+        TunnelType.SSH, TunnelType.DNSTT,
         TunnelType.SLIPSTREAM, TunnelType.NAIVE, TunnelType.SNOWFLAKE, TunnelType.DOH,
         TunnelType.SOCKS5
     )
 
     /** What a tunnel type provides to the next layer in the chain. */
     fun outputType(type: TunnelType): LayerOutput? = when (type) {
-        TunnelType.DNSTT, TunnelType.NOIZDNS -> LayerOutput.RAW_TCP
+        TunnelType.DNSTT -> LayerOutput.RAW_TCP
         TunnelType.SLIPSTREAM -> LayerOutput.RAW_TCP
         TunnelType.SSH -> LayerOutput.SOCKS5
         TunnelType.NAIVE -> LayerOutput.SOCKS5
@@ -63,7 +63,7 @@ object ChainValidation {
     fun canConsumeInput(type: TunnelType, input: LayerOutput): Boolean = when (type) {
         TunnelType.SSH -> true  // SSH can connect over raw TCP or SOCKS5
         TunnelType.SOCKS5 -> true  // SOCKS5 outbound traffic is routed through VPN/previous layer
-        TunnelType.DNSTT, TunnelType.NOIZDNS -> input == LayerOutput.SOCKS5  // needs SOCKS5 for resolver bypass
+        TunnelType.DNSTT -> input == LayerOutput.SOCKS5  // needs SOCKS5 for resolver bypass
         TunnelType.NAIVE -> true  // NaiveProxy outbound is routed through VPN/previous layer
         TunnelType.SLIPSTREAM -> false  // Slipstream connects to its own server directly
         TunnelType.DOH -> false
@@ -76,7 +76,7 @@ object ChainValidation {
      * Two profiles with the same bridge group cannot coexist in a chain.
      */
     fun bridgeGroup(type: TunnelType): String = when (type) {
-        TunnelType.DNSTT, TunnelType.NOIZDNS -> "dnstt"
+        TunnelType.DNSTT -> "dnstt"
         TunnelType.SLIPSTREAM -> "slipstream"
         TunnelType.SSH -> "ssh"
         TunnelType.NAIVE -> "naive"

@@ -30,8 +30,6 @@ class ConfigExporter @Inject constructor() {
         const val MODE_SLIPSTREAM_SSH = "slipstream_ssh"
         const val MODE_DNSTT = "dnstt"
         const val MODE_DNSTT_SSH = "dnstt_ssh"
-        const val MODE_NOIZDNS = "sayedns"
-        const val MODE_NOIZDNS_SSH = "sayedns_ssh"
         const val MODE_SSH = "ssh"
         const val MODE_DOH = "doh"
         const val MODE_SNOWFLAKE = "snowflake"
@@ -94,8 +92,6 @@ class ConfigExporter @Inject constructor() {
             TunnelType.SLIPSTREAM_SSH -> MODE_SLIPSTREAM_SSH
             TunnelType.DNSTT -> MODE_DNSTT
             TunnelType.DNSTT_SSH -> MODE_DNSTT_SSH
-            TunnelType.NOIZDNS -> MODE_NOIZDNS
-            TunnelType.NOIZDNS_SSH -> MODE_NOIZDNS_SSH
             TunnelType.SSH -> MODE_SSH
             TunnelType.DOH -> MODE_DOH
             TunnelType.SNOWFLAKE -> MODE_SNOWFLAKE

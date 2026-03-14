@@ -95,8 +95,7 @@ data class DnsScannerUiState(
         const val MAX_SAMPLE_COUNT = 100_000
         private val E2E_SUPPORTED_TUNNEL_TYPES = setOf(
             TunnelType.SLIPSTREAM, TunnelType.SLIPSTREAM_SSH,
-            TunnelType.DNSTT, TunnelType.DNSTT_SSH,
-            TunnelType.NOIZDNS, TunnelType.NOIZDNS_SSH
+            TunnelType.DNSTT, TunnelType.DNSTT_SSH
         )
     }
 
@@ -2074,8 +2073,7 @@ class DnsScannerViewModel @Inject constructor(
                         SlipstreamBridge.stopClient()
                         SlipstreamBridge.proxyOnlyMode = false
                     }
-                    TunnelType.DNSTT, TunnelType.DNSTT_SSH,
-                    TunnelType.NOIZDNS, TunnelType.NOIZDNS_SSH -> {
+                    TunnelType.DNSTT, TunnelType.DNSTT_SSH -> {
                         DnsttBridge.stopClient()
                     }
                     else -> {}

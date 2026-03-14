@@ -680,15 +680,6 @@ fun MainScreen(
                         }
                     )
                     AddMenuOption(
-                        icon = Icons.Default.VisibilityOff,
-                        title = "NoizDNS",
-                        description = "DPI-evasion DNS tunnel",
-                        onClick = {
-                            showAddMenu = false
-                            onNavigateToAddProfile(TunnelType.NOIZDNS.value)
-                        }
-                    )
-                    AddMenuOption(
                         icon = Icons.Default.Waves,
                         title = "Slipstream",
                         description = "DNS tunnel (QUIC)",
@@ -789,7 +780,6 @@ fun MainScreen(
                     Text("Included protocols:", fontWeight = FontWeight.Bold)
                     Text("• Slipstream / Slipstream + SSH")
                     Text("• DNSTT / DNSTT + SSH")
-                    Text("• NoizDNS / NoizDNS + SSH")
                     Text("• SSH")
                     Text("• DOH (DNS over HTTPS)")
                     Text("Not included (full version only):", fontWeight = FontWeight.Bold)
@@ -1045,7 +1035,7 @@ fun MainScreen(
                         if (profile.sshUsername.equals("root", ignoreCase = true) &&
                             profile.tunnelType in listOf(
                                 TunnelType.SSH, TunnelType.DNSTT_SSH,
-                                TunnelType.SLIPSTREAM_SSH, TunnelType.NOIZDNS_SSH,
+                                TunnelType.SLIPSTREAM_SSH,
                                 TunnelType.NAIVE_SSH
                             )
                         ) {
