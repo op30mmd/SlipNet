@@ -22,7 +22,7 @@ import (
 	"syscall"
 	"time"
 
-	"noizdns/mobile"
+	"dnstt-mobile/mobile"
 )
 
 // version is set at build time via -ldflags "-X main.version=..."
@@ -31,7 +31,7 @@ var version = "dev"
 // Profile fields (v16 pipe-delimited format)
 type Profile struct {
 	Version      string
-	TunnelType   string // "sayedns" = NoizDNS, "dnstt" = DNSTT
+	TunnelType   string // "dnstt" = DNSTT
 	Name         string
 	Domain       string
 	Resolvers    string // e.g. "8.8.8.8:53:0"
@@ -293,8 +293,8 @@ func connectWithParams(uri string, portOverride int, hostOverride string, dnsOve
 
 	// Validate tunnel type
 	switch profile.TunnelType {
-	case "dnstt", "dnstt_ssh", "sayedns", "sayedns_ssh":
-		// DNSTT/NoizDNS — handled below via noizdns/mobile
+	case "dnstt", "dnstt_ssh":
+		// DNSTT — handled below via mobile
 	case "ss", "slipstream_ssh":
 		// Slipstream — handled via slipstream-client subprocess
 		if portOverride > 0 {
@@ -411,13 +411,8 @@ func connectWithParams(uri string, portOverride int, hostOverride string, dnsOve
 
 	client.SetAuthoritativeMode(authMode)
 
-	if profile.TunnelType == "sayedns" || profile.TunnelType == "sayedns_ssh" {
-		client.SetNoizMode(true)
-	}
-
 	if utlsOverride != "" {
-		client.SetUTLSFingerprint(utlsOverride)
-		fmt.Printf("  uTLS:       %s\n", utlsOverride)
+		fmt.Printf("  Warning: uTLS override not supported by DNSTT client\n")
 	}
 
 	if err := client.Start(); err != nil {
@@ -463,7 +458,6 @@ func runScanCommand(args []string) {
 	var port = 53
 	var e2eEnabled bool
 	var pubkey string
-	var noizdns bool
 	var e2eConcurrency = 3
 	var e2eTimeout = 15000
 	var configURI string
@@ -516,8 +510,6 @@ func runScanCommand(args []string) {
 				pubkey = args[i+1]
 				i++
 			}
-		case "--noizdns":
-			noizdns = true
 		case "--e2e-concurrency":
 			if i+1 < len(args) {
 				v, err := strconv.Atoi(args[i+1])
@@ -545,7 +537,7 @@ func runScanCommand(args []string) {
 		}
 	}
 
-	// If --config is provided, extract domain, pubkey, and noizdns from slipnet:// URI
+	// If --config is provided, extract domain and pubkey from slipnet:// URI
 	if configURI != "" {
 		profile, err := parseURI(configURI)
 		if err != nil {
@@ -556,9 +548,6 @@ func runScanCommand(args []string) {
 		}
 		if pubkey == "" {
 			pubkey = profile.PublicKey
-		}
-		if profile.TunnelType == "sayedns" || profile.TunnelType == "sayedns_ssh" {
-			noizdns = true
 		}
 		// If e2e flag not explicitly set but pubkey is available, enable it
 		if pubkey != "" && !e2eEnabled {
@@ -595,7 +584,6 @@ func runScanCommand(args []string) {
 		e2eConfig = &E2EConfig{
 			TunnelDomain: domain,
 			PublicKey:     pubkey,
-			NoizMode:     noizdns,
 			TimeoutMs:    e2eTimeout,
 			Concurrency:  e2eConcurrency,
 		}
@@ -605,7 +593,7 @@ func runScanCommand(args []string) {
 }
 
 func printUsage() {
-	fmt.Fprintf(os.Stderr, `SlipNet CLI %s - DNS tunnel SOCKS5 proxy (DNSTT, NoizDNS, Slipstream)
+	fmt.Fprintf(os.Stderr, `SlipNet CLI %s - DNS tunnel SOCKS5 proxy (DNSTT, Slipstream)
 
 Usage:
   %s [options] slipnet://BASE64...
@@ -633,7 +621,6 @@ Options (scan):
   --port PORT         DNS port (default: 53)
   --e2e               Run E2E tunnel test on 6/6 resolvers after DNS scan
   --pubkey KEY        Server public key for E2E (required with --e2e)
-  --noizdns           Use NoizDNS mode for E2E (default: DNSTT)
   --e2e-concurrency N Parallel E2E tests (default: 3)
   --e2e-timeout MS    E2E HTTP timeout in ms (default: 15000)
   --config URI        Extract domain/pubkey/mode from slipnet:// URI (auto-enables E2E)

@@ -141,8 +141,6 @@ data class EditProfileUiState(
     val expirationDate: Long = 0,
     val allowSharing: Boolean = false,
     val boundDeviceId: String = "",
-    // NoizDNS stealth mode
-    val noizdnsStealth: Boolean = false,
     // DNS query payload size (0 = max/full capacity)
     val dnsPayloadSize: Int = 0,
     // Hidden resolvers (imported profile had resolvers hidden by exporter)
@@ -154,16 +152,10 @@ data class EditProfileUiState(
     val socks5ServerPortError: String? = null,
 ) {
     val useSsh: Boolean
-        get() = tunnelType == TunnelType.SSH || tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.NAIVE_SSH || tunnelType == TunnelType.NOIZDNS_SSH
+        get() = tunnelType == TunnelType.SSH || tunnelType == TunnelType.DNSTT_SSH || tunnelType == TunnelType.SLIPSTREAM_SSH || tunnelType == TunnelType.NAIVE_SSH
 
     val isDnsttBased: Boolean
         get() = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH
-
-    val isNoizdnsBased: Boolean
-        get() = tunnelType == TunnelType.NOIZDNS || tunnelType == TunnelType.NOIZDNS_SSH
-
-    val isDnsttOrNoizBased: Boolean
-        get() = isDnsttBased || isNoizdnsBased
 
     val isSlipstreamBased: Boolean
         get() = tunnelType == TunnelType.SLIPSTREAM || tunnelType == TunnelType.SLIPSTREAM_SSH
@@ -224,7 +216,6 @@ class EditProfileViewModel @Inject constructor(
     private fun prefillLocalResolver() {
         val needsResolver = initialTunnelType in setOf(
             TunnelType.DNSTT, TunnelType.DNSTT_SSH,
-            TunnelType.NOIZDNS, TunnelType.NOIZDNS_SSH,
             TunnelType.SLIPSTREAM, TunnelType.SLIPSTREAM_SSH
         )
         if (!needsResolver) return
@@ -266,7 +257,6 @@ class EditProfileViewModel @Inject constructor(
                     torBridgeType = detectBridgeType(profile.torBridgeLines),
                     torBridgeLines = profile.torBridgeLines,
                     dnsttAuthoritative = profile.dnsttAuthoritative,
-                    noizdnsStealth = profile.noizdnsStealth,
                     dnsPayloadSize = profile.dnsPayloadSize,
                     naivePort = profile.naivePort.toString(),
                     naiveUsername = profile.naiveUsername,
@@ -325,10 +315,6 @@ class EditProfileViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(authoritativeMode = enabled)
     }
 
-    fun updateNoizdnsStealth(enabled: Boolean) {
-        _uiState.value = _uiState.value.copy(noizdnsStealth = enabled)
-    }
-
     fun updateDnsPayloadSize(size: Int) {
         _uiState.value = _uiState.value.copy(dnsPayloadSize = size)
     }
@@ -357,11 +343,9 @@ class EditProfileViewModel @Inject constructor(
         val currentType = _uiState.value.tunnelType
         val newType = when {
             useSsh && (currentType == TunnelType.DNSTT || currentType == TunnelType.DNSTT_SSH) -> TunnelType.DNSTT_SSH
-            useSsh && (currentType == TunnelType.NOIZDNS || currentType == TunnelType.NOIZDNS_SSH) -> TunnelType.NOIZDNS_SSH
             useSsh && (currentType == TunnelType.SLIPSTREAM || currentType == TunnelType.SLIPSTREAM_SSH) -> TunnelType.SLIPSTREAM_SSH
             useSsh && (currentType == TunnelType.NAIVE || currentType == TunnelType.NAIVE_SSH) -> TunnelType.NAIVE_SSH
             !useSsh && (currentType == TunnelType.DNSTT || currentType == TunnelType.DNSTT_SSH) -> TunnelType.DNSTT
-            !useSsh && (currentType == TunnelType.NOIZDNS || currentType == TunnelType.NOIZDNS_SSH) -> TunnelType.NOIZDNS
             !useSsh && (currentType == TunnelType.SLIPSTREAM || currentType == TunnelType.SLIPSTREAM_SSH) -> TunnelType.SLIPSTREAM
             !useSsh && (currentType == TunnelType.NAIVE || currentType == TunnelType.NAIVE_SSH) -> TunnelType.NAIVE
             else -> currentType
@@ -1004,7 +988,7 @@ class EditProfileViewModel @Inject constructor(
 
         // DoH URL validation (DOH tunnel type or DNSTT with DoH transport)
         val needsDohUrl = state.tunnelType == TunnelType.DOH ||
-                (state.isDnsttOrNoizBased && state.dnsTransport == DnsTransport.DOH)
+                (state.isDnsttBased && state.dnsTransport == DnsTransport.DOH)
         if (needsDohUrl) {
             if (state.dohUrl.isBlank()) {
                 _uiState.value = _uiState.value.copy(dohUrlError = "DoH server URL is required")
@@ -1019,7 +1003,7 @@ class EditProfileViewModel @Inject constructor(
         // Also skip when resolvers are hidden and user isn't overriding with custom ones
         val skipResolvers = state.tunnelType == TunnelType.SSH || state.tunnelType == TunnelType.DOH ||
                 state.tunnelType == TunnelType.SNOWFLAKE || state.isNaiveBased || state.isSocks5 ||
-                (state.isDnsttOrNoizBased && state.dnsTransport == DnsTransport.DOH) ||
+                (state.isDnsttBased && state.dnsTransport == DnsTransport.DOH) ||
                 (state.resolversHidden && !state.useCustomResolver)
         if (!skipResolvers) {
             if (state.resolvers.isBlank()) {
@@ -1034,8 +1018,8 @@ class EditProfileViewModel @Inject constructor(
             }
         }
 
-        // DNSTT/NoizDNS-specific validation
-        if (state.isDnsttOrNoizBased) {
+        // DNSTT-specific validation
+        if (state.isDnsttBased) {
             val publicKeyError = validateDnsttPublicKey(state.dnsttPublicKey)
             if (publicKeyError != null) {
                 _uiState.value = _uiState.value.copy(dnsttPublicKeyError = publicKeyError)
@@ -1077,8 +1061,8 @@ class EditProfileViewModel @Inject constructor(
             }
         }
 
-        // SSH validation (SSH-only, DNSTT+SSH, NoizDNS+SSH, Slipstream+SSH, and NAIVE_SSH tunnel types)
-        if (state.tunnelType == TunnelType.SSH || state.tunnelType == TunnelType.DNSTT_SSH || state.tunnelType == TunnelType.NOIZDNS_SSH || state.tunnelType == TunnelType.SLIPSTREAM_SSH || state.tunnelType == TunnelType.NAIVE_SSH) {
+        // SSH validation (SSH-only, DNSTT+SSH, Slipstream+SSH, and NAIVE_SSH tunnel types)
+        if (state.tunnelType == TunnelType.SSH || state.tunnelType == TunnelType.DNSTT_SSH || state.tunnelType == TunnelType.SLIPSTREAM_SSH || state.tunnelType == TunnelType.NAIVE_SSH) {
             if (state.sshUsername.isBlank()) {
                 _uiState.value = _uiState.value.copy(sshUsernameError = "SSH username is required")
                 hasError = true
@@ -1099,8 +1083,8 @@ class EditProfileViewModel @Inject constructor(
             }
         }
 
-        // SSH port validation (SSH-only, DNSTT+SSH, NoizDNS+SSH, Slipstream+SSH, and NAIVE_SSH)
-        if (state.tunnelType == TunnelType.SSH || state.tunnelType == TunnelType.DNSTT_SSH || state.tunnelType == TunnelType.NOIZDNS_SSH || state.tunnelType == TunnelType.SLIPSTREAM_SSH || state.tunnelType == TunnelType.NAIVE_SSH) {
+        // SSH port validation (SSH-only, DNSTT+SSH, Slipstream+SSH, and NAIVE_SSH)
+        if (state.tunnelType == TunnelType.SSH || state.tunnelType == TunnelType.DNSTT_SSH || state.tunnelType == TunnelType.SLIPSTREAM_SSH || state.tunnelType == TunnelType.NAIVE_SSH) {
             val sshPort = state.sshPort.toIntOrNull()
             if (sshPort == null || sshPort !in 1..65535) {
                 _uiState.value = _uiState.value.copy(sshPortError = "Port must be between 1 and 65535")
@@ -1147,15 +1131,14 @@ class EditProfileViewModel @Inject constructor(
                     sshPassword = if (state.useSsh && state.sshAuthType == SshAuthType.PASSWORD) state.sshPassword else "",
                     sshPort = state.sshPort.toIntOrNull() ?: 22,
                     sshHost = "127.0.0.1",
-                    dohUrl = if (state.isDoh || (state.isDnsttOrNoizBased && state.dnsTransport == DnsTransport.DOH)) state.dohUrl.trim() else "",
-                    dnsTransport = if (state.isDnsttOrNoizBased) state.dnsTransport else DnsTransport.UDP,
+                    dohUrl = if (state.isDoh || (state.isDnsttBased && state.dnsTransport == DnsTransport.DOH)) state.dohUrl.trim() else "",
+                    dnsTransport = if (state.isDnsttBased) state.dnsTransport else DnsTransport.UDP,
                     sshAuthType = if (state.useSsh) state.sshAuthType else SshAuthType.PASSWORD,
                     sshPrivateKey = if (state.useSsh && state.sshAuthType == SshAuthType.KEY) state.sshPrivateKey else "",
                     sshKeyPassphrase = if (state.useSsh && state.sshAuthType == SshAuthType.KEY) state.sshKeyPassphrase else "",
                     torBridgeLines = if (state.isSnowflake) state.torBridgeLines.trim() else "",
-                    dnsttAuthoritative = if (state.isDnsttOrNoizBased) state.dnsttAuthoritative else false,
-                    noizdnsStealth = if (state.isNoizdnsBased) state.noizdnsStealth else false,
-                    dnsPayloadSize = if (state.isDnsttOrNoizBased) state.dnsPayloadSize else 0,
+                    dnsttAuthoritative = if (state.isDnsttBased) state.dnsttAuthoritative else false,
+                    dnsPayloadSize = if (state.isDnsttBased) state.dnsPayloadSize else 0,
                     naivePort = if (state.isNaiveBased) (state.naivePort.toIntOrNull() ?: 443) else 443,
                     naiveUsername = if (state.isNaiveBased) state.naiveUsername.trim() else "",
                     naivePassword = if (state.isNaiveBased) state.naivePassword else "",
@@ -1221,7 +1204,6 @@ class EditProfileViewModel @Inject constructor(
      */
     private fun validateDomain(domain: String, tunnelType: TunnelType): String? {
         val isDnsTunnel = tunnelType == TunnelType.DNSTT || tunnelType == TunnelType.DNSTT_SSH ||
-                tunnelType == TunnelType.NOIZDNS || tunnelType == TunnelType.NOIZDNS_SSH ||
                 tunnelType == TunnelType.SLIPSTREAM || tunnelType == TunnelType.SLIPSTREAM_SSH
 
         // SSH accepts hostnames and IPs — no DNS domain validation needed

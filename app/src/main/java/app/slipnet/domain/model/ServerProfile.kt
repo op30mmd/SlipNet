@@ -58,8 +58,6 @@ data class ServerProfile(
     val expirationDate: Long = 0,
     val allowSharing: Boolean = false,
     val boundDeviceId: String = "",
-    // NoizDNS stealth mode: trades speed for DPI resistance (jitter, slow polling, cover traffic)
-    val noizdnsStealth: Boolean = false,
     // DNS query payload size cap (KCP MTU). 0 = full capacity (default).
     // Lower values produce smaller, less conspicuous DNS queries.
     val dnsPayloadSize: Int = 0,
@@ -93,8 +91,6 @@ enum class TunnelType(val value: String, val displayName: String) {
     SLIPSTREAM_SSH("slipstream_ssh", "Slipstream + SSH"),
     DNSTT("dnstt", "DNSTT"),
     DNSTT_SSH("dnstt_ssh", "DNSTT + SSH"),
-    NOIZDNS("sayedns", "NoizDNS"),
-    NOIZDNS_SSH("sayedns_ssh", "NoizDNS + SSH"),
     SSH("ssh", "SSH"),
     DOH("doh", "DOH (DNS over HTTPS)"),
     SNOWFLAKE("snowflake", "Tor"),

@@ -48,7 +48,7 @@ func runInteractive() {
 		fmt.Printf("║          SlipNet CLI  %-25s  ║\n", version)
 		fmt.Println("╠══════════════════════════════════════════════════╣")
 		fmt.Println("║                                                  ║")
-		fmt.Println("║  1) Connect (DNSTT / NoizDNS / Slipstream)       ║")
+		fmt.Println("║  1) Connect (DNSTT / Slipstream)                 ║")
 		fmt.Println("║  2) DNS Scanner                                  ║")
 		fmt.Println("║  3) DNS Scanner + E2E Test                       ║")
 		fmt.Println("║  4) Quick Scan (single IP)                       ║")
@@ -188,11 +188,6 @@ func interactiveScan(withE2E bool) {
 				return
 			}
 			args = append(args, "--e2e", "--pubkey", pubkey)
-
-			noizdns := promptDefault("  NoizDNS mode? (y/N)", "n")
-			if strings.HasPrefix(strings.ToLower(noizdns), "y") {
-				args = append(args, "--noizdns")
-			}
 		}
 	} else {
 		domain := prompt("  Tunnel domain (e.g. t.example.com): ")

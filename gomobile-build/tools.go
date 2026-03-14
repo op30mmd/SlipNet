@@ -4,6 +4,6 @@ package tools
 
 import (
 	_ "golang.org/x/mobile/bind"
-	_ "noizdns/mobile"
+	_ "dnstt-mobile/mobile"
 	_ "snowflake-mobile/snowflake"
 )

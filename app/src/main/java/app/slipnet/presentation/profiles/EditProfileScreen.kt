@@ -166,7 +166,7 @@ fun EditProfileScreen(
                 },
                 actions = {
                     val lockedCanEditDns = uiState.isLocked &&
-                            (uiState.isDnsttOrNoizBased || uiState.isSlipstreamBased)
+                            (uiState.isDnsttBased || uiState.isSlipstreamBased)
                     if (!uiState.isLocked || lockedCanEditDns) {
                         if (uiState.isSaving) {
                             CircularProgressIndicator(
@@ -277,7 +277,7 @@ fun EditProfileScreen(
                 }
 
                 // DNS settings card
-                if (uiState.isDnsttOrNoizBased || uiState.isSlipstreamBased) {
+                if (uiState.isDnsttBased || uiState.isSlipstreamBased) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         colors = CardDefaults.cardColors(
@@ -313,7 +313,7 @@ fun EditProfileScreen(
                             )
 
                             // DNS Transport selector (DNSTT-based profiles only)
-                            if (uiState.isDnsttOrNoizBased) {
+                            if (uiState.isDnsttBased) {
                                 Text(
                                     text = "Transport",
                                     style = MaterialTheme.typography.labelLarge,
@@ -349,7 +349,7 @@ fun EditProfileScreen(
                             }
 
                             // DoH URL for DNSTT with DoH transport
-                            if (uiState.isDnsttOrNoizBased && uiState.dnsTransport == DnsTransport.DOH) {
+                            if (uiState.isDnsttBased && uiState.dnsTransport == DnsTransport.DOH) {
                                 DohServerSelector(
                                     dohUrl = uiState.dohUrl,
                                     dohUrlError = uiState.dohUrlError,
@@ -362,7 +362,7 @@ fun EditProfileScreen(
                             }
 
                             // Resolver field (not shown when DNSTT with DoH transport)
-                            if (!(uiState.isDnsttOrNoizBased && uiState.dnsTransport == DnsTransport.DOH)) {
+                            if (!(uiState.isDnsttBased && uiState.dnsTransport == DnsTransport.DOH)) {
                                 if (uiState.resolversHidden) {
                                     // Hidden resolver: show toggle for custom override
                                     Text(
@@ -385,7 +385,7 @@ fun EditProfileScreen(
                                         )
                                     }
                                     if (uiState.useCustomResolver) {
-                                        val isDoT = uiState.isDnsttOrNoizBased && uiState.dnsTransport == DnsTransport.DOT
+                                        val isDoT = uiState.isDnsttBased && uiState.dnsTransport == DnsTransport.DOT
                                         OutlinedTextField(
                                             value = uiState.resolvers,
                                             onValueChange = { viewModel.updateResolvers(it) },
@@ -412,7 +412,7 @@ fun EditProfileScreen(
                                         }
                                     }
                                 } else {
-                                    val isDoT = uiState.isDnsttOrNoizBased && uiState.dnsTransport == DnsTransport.DOT
+                                    val isDoT = uiState.isDnsttBased && uiState.dnsTransport == DnsTransport.DOT
                                     OutlinedTextField(
                                         value = uiState.resolvers,
                                         onValueChange = { viewModel.updateResolvers(it) },
@@ -461,7 +461,7 @@ fun EditProfileScreen(
                             }
 
                             // DNS Query Size (locked profiles)
-                            if (uiState.isDnsttOrNoizBased) {
+                            if (uiState.isDnsttBased) {
                                 var showMtuDialogLocked by remember { mutableStateOf(false) }
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                                 Row(
@@ -595,41 +595,6 @@ fun EditProfileScreen(
                                     )
                                 }
                             }
-
-                            // Stealth mode (locked profiles, NoizDNS only)
-                            if (uiState.isNoizdnsBased) {
-                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(vertical = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = "Stealth mode",
-                                            style = MaterialTheme.typography.bodyLarge
-                                        )
-                                        Text(
-                                            text = "Slower speed, harder to detect by DPI",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    Switch(
-                                        checked = uiState.noizdnsStealth,
-                                        onCheckedChange = { viewModel.updateNoizdnsStealth(it) }
-                                    )
-                                }
-                                if (uiState.noizdnsStealth) {
-                                    Text(
-                                        text = "Internet speed will be reduced.",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
-                                }
-                            }
                         }
                     }
                 }
@@ -742,7 +707,7 @@ fun EditProfileScreen(
                         placeholder = {
                             Text(
                                 when {
-                                    uiState.isDnsttOrNoizBased -> "t.example.com"
+                                    uiState.isDnsttBased -> "t.example.com"
                                     uiState.isSshOnly -> "ssh.example.com"
                                     uiState.isNaiveBased -> "proxy.example.com"
                                     else -> "vpn.example.com"
@@ -753,7 +718,6 @@ fun EditProfileScreen(
                         supportingText = {
                             Text(
                                 uiState.domainError ?: when {
-                                    uiState.isNoizdnsBased -> "NoizDNS tunnel domain"
                                     uiState.isDnsttBased -> "DNSTT tunnel domain"
                                     uiState.isSlipstreamBased -> "Slipstream tunnel domain"
                                     uiState.isNaiveBased -> "Caddy server hostname"
@@ -905,7 +869,7 @@ fun EditProfileScreen(
                 }
 
                 // DNSTT Public Key
-                if (uiState.isDnsttOrNoizBased) {
+                if (uiState.isDnsttBased) {
                     OutlinedTextField(
                         value = uiState.dnsttPublicKey,
                         onValueChange = { viewModel.updateDnsttPublicKey(it) },
@@ -921,7 +885,7 @@ fun EditProfileScreen(
                 }
 
                 // DNS Transport selector (DNSTT-based profiles only)
-                if (uiState.isDnsttOrNoizBased) {
+                if (uiState.isDnsttBased) {
                     Text(
                         text = "DNS Transport",
                         style = MaterialTheme.typography.titleMedium,
@@ -953,7 +917,7 @@ fun EditProfileScreen(
                 }
 
                 // Authoritative Mode toggle (DNSTT-based profiles only)
-                if (uiState.isDnsttOrNoizBased) {
+                if (uiState.isDnsttBased) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -987,8 +951,8 @@ fun EditProfileScreen(
                     }
                 }
 
-                // DNS MTU selector (DNSTT/NoizDNS only)
-                if (uiState.isDnsttOrNoizBased) {
+                // DNS MTU selector (DNSTT only)
+                if (uiState.isDnsttBased) {
                     var showMtuDialog by remember { mutableStateOf(false) }
                     Row(
                         modifier = Modifier
@@ -1122,44 +1086,8 @@ fun EditProfileScreen(
                     }
                 }
 
-                // NoizDNS stealth mode toggle
-                if (uiState.isNoizdnsBased) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Stealth mode",
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Text(
-                                text = "Slower speed, harder to detect by DPI",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Switch(
-                            checked = uiState.noizdnsStealth,
-                            onCheckedChange = { viewModel.updateNoizdnsStealth(it) }
-                        )
-                    }
-                    if (uiState.noizdnsStealth) {
-                        Text(
-                            text = "Internet speed will be reduced. Use split tunneling to limit which apps use the tunnel for better performance.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.padding(bottom = 8.dp)
-                        )
-                    }
-
-                }
-
                 // DoH URL for DNSTT with DoH transport
-                if (uiState.isDnsttOrNoizBased && uiState.dnsTransport == DnsTransport.DOH) {
+                if (uiState.isDnsttBased && uiState.dnsTransport == DnsTransport.DOH) {
                     DohServerSelector(
                         dohUrl = uiState.dohUrl,
                         dohUrlError = uiState.dohUrlError,
@@ -1173,7 +1101,7 @@ fun EditProfileScreen(
 
                 // Resolvers (not shown for SSH-only, DOH, SOCKS5, or DNSTT with DoH transport)
                 val showResolvers = !uiState.isSshOnly && !uiState.isDoh && !uiState.isSnowflake && !uiState.isNaiveBased &&
-                        !uiState.isSocks5 && !(uiState.isDnsttOrNoizBased && uiState.dnsTransport == DnsTransport.DOH)
+                        !uiState.isSocks5 && !(uiState.isDnsttBased && uiState.dnsTransport == DnsTransport.DOH)
                 if (showResolvers) {
                     if (uiState.resolversHidden) {
                         // Hidden resolver: show toggle for custom override
@@ -1197,7 +1125,7 @@ fun EditProfileScreen(
                             )
                         }
                         if (uiState.useCustomResolver) {
-                            val isDoT = uiState.isDnsttOrNoizBased && uiState.dnsTransport == DnsTransport.DOT
+                            val isDoT = uiState.isDnsttBased && uiState.dnsTransport == DnsTransport.DOT
                             OutlinedTextField(
                                 value = uiState.resolvers,
                                 onValueChange = { viewModel.updateResolvers(it) },
@@ -1223,7 +1151,7 @@ fun EditProfileScreen(
                             }
                         }
                     } else {
-                        val isDoT = uiState.isDnsttOrNoizBased && uiState.dnsTransport == DnsTransport.DOT
+                        val isDoT = uiState.isDnsttBased && uiState.dnsTransport == DnsTransport.DOT
                         OutlinedTextField(
                             value = uiState.resolvers,
                             onValueChange = { viewModel.updateResolvers(it) },
@@ -1820,21 +1748,13 @@ fun EditProfileScreen(
                 }
 
                 // Server setup guide
-                if (uiState.isNoizdnsBased || uiState.isNaiveBased) {
+                if (uiState.isNaiveBased) {
                     Spacer(modifier = Modifier.height(8.dp))
                     HorizontalDivider()
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    val guideUrl = when {
-                        uiState.isNoizdnsBased -> "https://github.com/anonvector/noizdns-deploy"
-                        uiState.isNaiveBased -> "https://github.com/anonvector/slipgate"
-                        else -> null
-                    }
-                    val guideLabel = when {
-                        uiState.isNoizdnsBased -> "NoizDNS Server Setup Guide"
-                        uiState.isNaiveBased -> "NaiveProxy Server Setup Guide"
-                        else -> null
-                    }
+                    val guideUrl = "https://github.com/anonvector/slipgate"
+                    val guideLabel = "NaiveProxy Server Setup Guide"
                     if (guideUrl != null && guideLabel != null) {
                         Surface(
                             onClick = {

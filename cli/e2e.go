@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"noizdns/mobile"
+	"dnstt-mobile/mobile"
 
 	"golang.org/x/net/proxy"
 )
@@ -30,7 +30,6 @@ type E2EResult struct {
 type E2EConfig struct {
 	TunnelDomain string
 	PublicKey    string
-	NoizMode     bool
 	TimeoutMs    int
 	Concurrency  int // max parallel E2E tests (bridges are NOT singletons in Go)
 }
@@ -98,9 +97,6 @@ func testResolverE2E(resolverIP string, localPort int, config E2EConfig) E2EResu
 	}
 
 	client.SetAuthoritativeMode(false)
-	if config.NoizMode {
-		client.SetNoizMode(true)
-	}
 
 	if err := client.Start(); err != nil {
 		result.Error = fmt.Sprintf("start tunnel: %v", err)
