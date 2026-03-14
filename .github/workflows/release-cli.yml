@@ -137,11 +137,12 @@ jobs:
           CGO_ENABLED: '0'
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          CONFIG_ENCRYPTION_KEY: ${{ secrets.CONFIG_ENCRYPTION_KEY }}
         run: |
           VERSION="${{ github.event.inputs.version || github.ref_name }}"
           LDFLAGS="-s -w -X main.version=${VERSION}"
-          if [ -n "${{ secrets.CONFIG_ENCRYPTION_KEY }}" ]; then
-            LDFLAGS="${LDFLAGS} -X main.configKey=${{ secrets.CONFIG_ENCRYPTION_KEY }}"
+          if [ -n "$CONFIG_ENCRYPTION_KEY" ]; then
+            LDFLAGS="${LDFLAGS} -X main.configKey=$CONFIG_ENCRYPTION_KEY"
           fi
           go build -tags embed_slipstream -trimpath -ldflags="${LDFLAGS}" -o ../slipnet-${{ matrix.suffix }}${{ matrix.ext }} .
 
