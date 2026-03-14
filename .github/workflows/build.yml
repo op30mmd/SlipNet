@@ -164,6 +164,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          # If triggered by a tag, use it. If triggered manually, generate a unique tag (e.g. v-manual-15)
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || format('v-manual-{0}', github.run_number) }}
           files: ./artifacts/*.apk
           generate_release_notes: true
         env:
