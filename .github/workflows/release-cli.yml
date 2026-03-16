@@ -85,6 +85,7 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Build slipstream-client
+        shell: bash
         working-directory: app/src/main/rust/slipstream-rust
         env:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
