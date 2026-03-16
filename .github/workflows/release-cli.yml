@@ -41,7 +41,7 @@ jobs:
 
   # Build slipstream-client for each platform first
   build-slipstream:
-    needs: [tag]
+    needs:[tag]
     if: always() && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
       matrix:
@@ -108,6 +108,11 @@ jobs:
             export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:$PATH"
             # Remove Git Bash linker to ensure MSVC link.exe is used
             rm -f /usr/bin/link
+            
+            # picotls fails to compile on Windows with MSVC because it misses the wincompat.h directory
+            WIN_PWD=$(cygpath -m "$PWD")
+            export CFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
+            export CXXFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
           fi
           if [[ "${{ matrix.cross }}" == "true" ]]; then
             # Explicitly set tools for the cc crate and cargo linker
@@ -130,7 +135,7 @@ jobs:
 
   # Build Go CLI with embedded slipstream binary
   build-cli:
-    needs: [build-slipstream, tag]
+    needs:[build-slipstream, tag]
     if: always() && (needs.build-slipstream.result == 'success') && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
       matrix:
