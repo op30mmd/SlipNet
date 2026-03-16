@@ -19,8 +19,30 @@ on:
         default: true
 
 jobs:
+  tag:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    outputs:
+      new_tag: ${{ steps.tag_action.outputs.new_tag }}
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Bump version and push tag
+        id: tag_action
+        uses: anothrNick/github-tag-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WITH_V: true
+          DEFAULT_BUMP: patch
+
   # Build slipstream-client for each platform first
   build-slipstream:
+    needs: [tag]
+    if: always() && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
       matrix:
         include:
@@ -80,7 +102,8 @@ jobs:
 
   # Build Go CLI with embedded slipstream binary
   build-cli:
-    needs: build-slipstream
+    needs: [build-slipstream, tag]
+    if: always() && (needs.build-slipstream.result == 'success') && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
       matrix:
         include:
@@ -139,7 +162,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
           CONFIG_ENCRYPTION_KEY: ${{ secrets.CONFIG_ENCRYPTION_KEY }}
         run: |
-          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="${{ needs.tag.outputs.new_tag || github.event.inputs.version || github.ref_name }}"
           LDFLAGS="-s -w -X main.version=${VERSION}"
           if [ -n "$CONFIG_ENCRYPTION_KEY" ]; then
             LDFLAGS="${LDFLAGS} -X main.configKey=$CONFIG_ENCRYPTION_KEY"
@@ -159,26 +182,15 @@ jobs:
           path: slipnet-${{ matrix.suffix }}${{ matrix.ext }}
 
   release-cli:
-    needs: build-cli
+    needs: [tag, build-cli]
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true')
+    if: always() && (needs.tag.result == 'success' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'))
     permissions:
       contents: write
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Bump version and push tag
-        if: github.ref == 'refs/heads/main'
-        id: tag_action
-        uses: anothrNick/github-tag-action@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WITH_V: true
-          DEFAULT_BUMP: patch
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -190,8 +202,8 @@ jobs:
       - name: Create/Update Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.tag_action.outputs.new_tag || github.event.inputs.version || github.ref_name }}
-          name: ${{ steps.tag_action.outputs.new_tag || github.event.inputs.version || github.ref_name }}
+          tag_name: ${{ needs.tag.outputs.new_tag || github.event.inputs.version || github.ref_name }}
+          name: ${{ needs.tag.outputs.new_tag || github.event.inputs.version || github.ref_name }}
           files: ./artifacts/slipnet-*
           generate_release_notes: true
         env:

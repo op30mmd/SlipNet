@@ -18,26 +18,30 @@ const (
 )
 
 type ScannerMsg struct {
-	Result *ScanResult
-	Scanned int
-	Total   int
-	Working int
+	Result         *ScanResult
+	Scanned        int
+	Total          int
+	Working        int
 	ExpansionQueue int
-	Done    bool
+	ProxyDetected  bool
+	ProxyChecked   bool
+	Done           bool
 }
 
 type model struct {
-	progress progress.Model
-	viewport viewport.Model
-	results  []string
-	scanned  int
-	total    int
-	working  int
-	queue    int
-	done     bool
-	width    int
-	height   int
-	domain   string
+	progress      progress.Model
+	viewport      viewport.Model
+	results       []string
+	scanned       int
+	total         int
+	working       int
+	queue         int
+	proxyDetected bool
+	proxyChecked  bool
+	done          bool
+	width         int
+	height        int
+	domain        string
 }
 
 func newModel(domain string) model {
@@ -69,6 +73,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case ScannerMsg:
+		if msg.ProxyChecked {
+			m.proxyChecked = true
+			m.proxyDetected = msg.ProxyDetected
+		}
 		if msg.Result != nil {
 			r := msg.Result
 			m.scanned = msg.Scanned
@@ -102,12 +110,22 @@ func (m model) View() string {
 		return "Initializing..."
 	}
 
+	proxyInfo := ""
+	if m.proxyChecked {
+		if m.proxyDetected {
+			proxyInfo = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5555")).Render("  ⚠ Transparent Proxy: DETECTED")
+		} else {
+			proxyInfo = lipgloss.NewStyle().Foreground(lipgloss.Color("#55FF55")).Render("  ✔ Transparent Proxy: None")
+		}
+	}
+
 	header := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62")).
 		Padding(0, 1).
 		Render(
-			fmt.Sprintf("SlipNet DNS Scanner - Domain: %s\n\n", m.domain) +
+			fmt.Sprintf("SlipNet DNS Scanner - Domain: %s\n", m.domain) +
+				proxyInfo + "\n\n" +
 				fmt.Sprintf("Scanned: %d / %d  |  Working: %d  |  Queue: %d\n\n", m.scanned, m.total, m.working, m.queue) +
 				m.progress.ViewAs(float64(m.scanned)/float64(m.total)),
 		)

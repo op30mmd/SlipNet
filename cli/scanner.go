@@ -90,11 +90,7 @@ func ScanResolvers(initialResolvers []string, port int, testDomain string, timeo
 	expandedSubnets := make(map[string]bool)
 	taskCh := make(chan string, 100000)
 
-	wg.Add(len(initialResolvers))
-	for _, ip := range initialResolvers {
-		taskCh <- ip
-	}
-
+	// Start workers first to prevent deadlock if initial list > buffer size
 	for i := 0; i < concurrency; i++ {
 		go func() {
 			for host := range taskCh {
@@ -110,16 +106,23 @@ func ScanResolvers(initialResolvers []string, port int, testDomain string, timeo
 					if subnet != "" && !expandedSubnets[subnet] {
 						expandedSubnets[subnet] = true
 						neighbors := ExpandSlash24(host)
+						var toAdd []string
 						for _, n := range neighbors {
 							if !seen[n] {
 								seen[n] = true
-								atomic.AddInt32(&totalCount, 1)
-								wg.Add(1)
-								taskCh <- n
+								toAdd = append(toAdd, n)
 							}
 						}
+						mu.Unlock()
+
+						for _, n := range toAdd {
+							atomic.AddInt32(&totalCount, 1)
+							wg.Add(1)
+							taskCh <- n
+						}
+					} else {
+						mu.Unlock()
 					}
-					mu.Unlock()
 				}
 
 				tc := atomic.LoadInt32(&totalCount)
@@ -128,6 +131,14 @@ func ScanResolvers(initialResolvers []string, port int, testDomain string, timeo
 			}
 		}()
 	}
+
+	// Feed initial resolvers
+	wg.Add(len(initialResolvers))
+	go func() {
+		for _, ip := range initialResolvers {
+			taskCh <- ip
+		}
+	}()
 
 	wg.Wait()
 	close(taskCh)
@@ -592,6 +603,10 @@ func RunScanner(resolvers []string, testDomain string, port int, timeoutMs int, 
 	updateCh := make(chan ScannerMsg, 100)
 	if useTUI {
 		go RunTUI(testDomain, updateCh)
+		go func() {
+			detected := DetectTransparentProxy(testDomain, 2000)
+			updateCh <- ScannerMsg{ProxyChecked: true, ProxyDetected: detected}
+		}()
 	} else {
 		fmt.Println()
 		fmt.Println("╔══════════════════════════════════════════════════╗")
