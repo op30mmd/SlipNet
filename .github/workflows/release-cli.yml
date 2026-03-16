@@ -82,6 +82,10 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/setup-nasm@v1
 
+      - name: Install pkgconfiglite (Windows)
+        if: runner.os == 'Windows'
+        run: choco install pkgconfiglite -y
+
       - name: Set up MSVC (Windows)
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
@@ -99,8 +103,9 @@ jobs:
           CONFIG_ENCRYPTION_KEY: ${{ secrets.CONFIG_ENCRYPTION_KEY }}
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            # Prepend Strawberry Perl to PATH to avoid using the incomplete Perl from Git
-            export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:/c/Strawberry/c/bin:$PATH"
+            # Prepend Strawberry Perl to PATH to avoid using the incomplete Perl from Git.
+            # Intentionally omitting /c/Strawberry/c/bin to prevent CMake from using MinGW GCC instead of MSVC.
+            export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:$PATH"
             # Remove Git Bash linker to ensure MSVC link.exe is used
             rm -f /usr/bin/link
           fi
