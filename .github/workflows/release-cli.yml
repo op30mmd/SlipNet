@@ -53,6 +53,8 @@ jobs:
             suffix: linux-arm64
             os: ubuntu-latest
             cross: true
+            cc: aarch64-linux-gnu-gcc
+            ar: aarch64-linux-gnu-ar
           - target: x86_64-apple-darwin
             suffix: darwin-amd64
             os: macos-13
@@ -92,6 +94,8 @@ jobs:
         shell: bash
         working-directory: app/src/main/rust/slipstream-rust
         env:
+          CC: ${{ matrix.cc || 'cc' }}
+          AR: ${{ matrix.ar || 'ar' }}
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           CONFIG_ENCRYPTION_KEY: ${{ secrets.CONFIG_ENCRYPTION_KEY }}
         run: |
