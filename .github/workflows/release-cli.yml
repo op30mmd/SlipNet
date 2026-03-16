@@ -101,8 +101,8 @@ jobs:
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             # Prepend Strawberry Perl to PATH to avoid using the incomplete Perl from Git
             export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:/c/Strawberry/c/bin:$PATH"
-            # Ensure MSVC linker is preferred over Git for Windows linker
-            export PATH="/c/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/bin/HostX64/x64:$PATH"
+            # Remove Git Bash linker to ensure MSVC link.exe is used
+            rm -f /usr/bin/link
           fi
           if [[ "${{ matrix.cross }}" == "true" ]]; then
             export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
