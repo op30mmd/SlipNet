@@ -202,13 +202,38 @@ func interactiveScan(withE2E bool) {
 	// IP source
 	fmt.Println()
 	fmt.Println("  IP source:")
-	fmt.Println("    1) File (one IP per line)")
-	fmt.Println("    2) Paste IPs")
+	fmt.Println("    1) Default List")
+	fmt.Println("    2) Country Range")
+	fmt.Println("    3) File (one IP per line)")
+	fmt.Println("    4) Paste IPs")
 	fmt.Println()
 	ipChoice := prompt("  Select: ")
 
 	switch ipChoice {
 	case "1":
+		// No extra args needed, runScanCommand defaults to embedded list
+
+	case "2":
+		fmt.Println()
+		fmt.Println("  Select country:")
+		fmt.Println("    1) Iran (ir)")
+		fmt.Println("    2) China (cn)")
+		fmt.Println("    3) Russia (ru)")
+		fmt.Println("    4) Iran DNS (ir_dns)")
+		fmt.Println()
+		cChoice := prompt("  Select: ")
+		country := "ir"
+		switch cChoice {
+		case "2": country = "cn"
+		case "3": country = "ru"
+		case "4": country = "ir_dns"
+		}
+		args = append(args, "--country", country)
+
+		sample := promptDefault("  Sample size", "2000")
+		args = append(args, "--sample", sample)
+
+	case "3":
 		filePath := prompt("  File path: ")
 		filePath = strings.Trim(filePath, "\"' ") // Strip quotes from drag-and-drop
 		if filePath == "" {
@@ -224,7 +249,7 @@ func interactiveScan(withE2E bool) {
 		}
 		args = append(args, "--ips", filePath)
 
-	case "2":
+	case "4":
 		fmt.Println("  Paste IPs (one per line, empty line to finish):")
 		var ips []string
 		for {
@@ -265,6 +290,11 @@ func interactiveScan(withE2E bool) {
 
 	// Optional settings
 	fmt.Println()
+	neighbors := promptDefault("  Test nearby IPs (/24 subnet)? (y/N)", "n")
+	if strings.HasPrefix(strings.ToLower(neighbors), "y") {
+		args = append(args, "--neighbors")
+	}
+
 	concurrency := promptDefault("  Concurrency", "100")
 	if v, _ := strconv.Atoi(concurrency); v > 0 {
 		args = append(args, "--concurrency", concurrency)

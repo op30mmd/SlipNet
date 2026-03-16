@@ -73,22 +73,72 @@ type ScanResult struct {
 	Tunnel     *TunnelTestResult
 }
 
-// ScanResolvers scans a list of resolver IPs concurrently.
-func ScanResolvers(resolvers []string, port int, testDomain string, timeoutMs int, concurrency int, onResult func(ScanResult)) {
+// ScanResolvers scans a list of resolver IPs concurrently, supporting dynamic expansion.
+func ScanResolvers(initialResolvers []string, port int, testDomain string, timeoutMs int, concurrency int, expandNeighbors bool, onResult func(ScanResult, int, int)) {
 	sem := make(chan struct{}, concurrency)
 	var wg sync.WaitGroup
 
-	for _, ip := range resolvers {
-		wg.Add(1)
-		sem <- struct{}{}
-		go func(host string) {
-			defer wg.Done()
-			defer func() { <-sem }()
-			result := scanResolver(host, port, testDomain, timeoutMs)
-			onResult(result)
-		}(ip)
+	var scannedCount int32
+	var totalCount int32 = int32(len(initialResolvers))
+
+	seen := make(map[string]bool)
+	var mu sync.Mutex
+	for _, ip := range initialResolvers {
+		seen[ip] = true
 	}
+
+	expandedSubnets := make(map[string]bool)
+	taskCh := make(chan string, 100000)
+
+	wg.Add(len(initialResolvers))
+	for _, ip := range initialResolvers {
+		taskCh <- ip
+	}
+
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			for host := range taskCh {
+				sem <- struct{}{}
+				result := scanResolver(host, port, testDomain, timeoutMs)
+				<-sem
+
+				sc := atomic.AddInt32(&scannedCount, 1)
+
+				if expandNeighbors && result.Status == statusWorking {
+					subnet := getSubnet(host)
+					mu.Lock()
+					if subnet != "" && !expandedSubnets[subnet] {
+						expandedSubnets[subnet] = true
+						neighbors := ExpandSlash24(host)
+						for _, n := range neighbors {
+							if !seen[n] {
+								seen[n] = true
+								atomic.AddInt32(&totalCount, 1)
+								wg.Add(1)
+								taskCh <- n
+							}
+						}
+					}
+					mu.Unlock()
+				}
+
+				tc := atomic.LoadInt32(&totalCount)
+				onResult(result, int(sc), int(tc))
+				wg.Done()
+			}
+		}()
+	}
+
 	wg.Wait()
+	close(taskCh)
+}
+
+func getSubnet(ip string) string {
+	parts := strings.Split(ip, ".")
+	if len(parts) == 4 {
+		return strings.Join(parts[:3], ".")
+	}
+	return ""
 }
 
 func scanResolver(host string, port int, testDomain string, timeoutMs int) ScanResult {
@@ -99,8 +149,7 @@ func scanResolver(host string, port int, testDomain string, timeoutMs int) ScanR
 	parent := getParentDomain(testDomain)
 	query := sub + "." + parent
 
-	// Use shorter timeout for initial probe — if a resolver can't answer
-	// a basic A query quickly, it's too slow for tunneling anyway.
+	// Use shorter timeout for initial probe
 	probeTimeout := timeoutMs
 	if probeTimeout > 1500 {
 		probeTimeout = 1500
@@ -239,7 +288,6 @@ func testNXDOMAIN(host string, port int, timeoutMs int) bool {
 }
 
 // DetectTransparentProxy tests if the ISP intercepts DNS queries
-// by sending queries to RFC 5737 TEST-NET IPs that should never host DNS servers.
 func DetectTransparentProxy(testDomain string, timeoutMs int) bool {
 	testNets := []string{"192.0.2.1", "198.51.100.1", "203.0.113.1"}
 	var detected atomic.Bool
@@ -270,7 +318,6 @@ func dnsQuery(host string, port int, name string, qtype uint16, timeoutMs int, a
 	defer conn.Close()
 	conn.SetDeadline(time.Now().Add(time.Duration(timeoutMs) * time.Millisecond))
 
-	// Build query packet
 	txid := []byte{byte(rand.IntN(256)), byte(rand.IntN(256))}
 
 	var pkt []byte
@@ -285,13 +332,10 @@ func dnsQuery(host string, port int, name string, qtype uint16, timeoutMs int, a
 		pkt = append(pkt, 0x00, 0x00) // additional: 0
 	}
 
-	// Encode domain name
 	pkt = append(pkt, encodeDNSName(name)...)
-	// QTYPE + QCLASS
 	pkt = append(pkt, byte(qtype>>8), byte(qtype))
 	pkt = append(pkt, 0x00, 0x01) // IN class
 
-	// Additional section (EDNS0 OPT)
 	if additional != nil {
 		pkt = append(pkt, additional...)
 	}
@@ -326,13 +370,12 @@ func encodeDNSName(name string) []byte {
 }
 
 func buildEDNS0OPT(payloadSize int) []byte {
-	// OPT pseudo-RR: name=root(0), type=OPT(41), class=payloadSize, TTL=0, rdlen=0
 	return []byte{
-		0x00,                                      // root name
-		0x00, byte(dnsTypeOPT),                    // type OPT (41)
-		byte(payloadSize >> 8), byte(payloadSize), // UDP payload size
-		0x00, 0x00, 0x00, 0x00,                    // extended RCODE + version + flags
-		0x00, 0x00,                                // RDLENGTH = 0
+		0x00,
+		0x00, byte(dnsTypeOPT),
+		byte(payloadSize >> 8), byte(payloadSize),
+		0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00,
 	}
 }
 
@@ -340,23 +383,19 @@ func hasOPTRecord(resp []byte) bool {
 	if len(resp) < 12 {
 		return false
 	}
-	// Scan additional section for OPT (type 41)
 	arcount := int(binary.BigEndian.Uint16(resp[10:12]))
 	if arcount == 0 {
 		return false
 	}
-	// Skip header (12) + question + answer + authority sections
 	offset := 12
 	qdcount := int(binary.BigEndian.Uint16(resp[4:6]))
 	ancount := int(binary.BigEndian.Uint16(resp[6:8]))
 	nscount := int(binary.BigEndian.Uint16(resp[8:10]))
 
-	// Skip question section
 	for i := 0; i < qdcount && offset < len(resp); i++ {
 		offset = skipDNSName(resp, offset)
-		offset += 4 // QTYPE + QCLASS
+		offset += 4
 	}
-	// Skip answer + authority sections
 	for i := 0; i < ancount+nscount && offset < len(resp); i++ {
 		offset = skipDNSName(resp, offset)
 		if offset+10 > len(resp) {
@@ -365,7 +404,6 @@ func hasOPTRecord(resp []byte) bool {
 		rdlen := int(binary.BigEndian.Uint16(resp[offset+8 : offset+10]))
 		offset += 10 + rdlen
 	}
-	// Scan additional section
 	for i := 0; i < arcount && offset < len(resp); i++ {
 		nameEnd := skipDNSName(resp, offset)
 		if nameEnd+10 > len(resp) {
@@ -387,13 +425,11 @@ func extractNSHost(resp []byte) string {
 	}
 	ancount := int(binary.BigEndian.Uint16(resp[6:8]))
 	offset := 12
-	// Skip question section
 	qdcount := int(binary.BigEndian.Uint16(resp[4:6]))
 	for i := 0; i < qdcount && offset < len(resp); i++ {
 		offset = skipDNSName(resp, offset)
 		offset += 4
 	}
-	// Read first NS answer
 	for i := 0; i < ancount && offset < len(resp); i++ {
 		offset = skipDNSName(resp, offset)
 		if offset+10 > len(resp) {
@@ -416,7 +452,7 @@ func skipDNSName(pkt []byte, offset int) int {
 		if length == 0 {
 			return offset + 1
 		}
-		if length >= 0xC0 { // pointer
+		if length >= 0xC0 {
 			return offset + 2
 		}
 		offset += 1 + length
@@ -429,7 +465,7 @@ func decodeDNSName(pkt []byte, offset int) string {
 	visited := make(map[int]bool)
 	for offset < len(pkt) {
 		if visited[offset] {
-			break // prevent loops
+			break
 		}
 		visited[offset] = true
 		length := int(pkt[offset])
@@ -524,7 +560,6 @@ func LoadIPList(content string) []string {
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
-		// Extract IP (take first token, strip port if present)
 		parts := strings.Fields(line)
 		if len(parts) == 0 {
 			continue
@@ -540,8 +575,7 @@ func LoadIPList(content string) []string {
 }
 
 // RunScanner is the main entry point for the CLI scanner.
-// If e2eConfig is non-nil, runs E2E tunnel tests on 6/6 resolvers after DNS scan.
-func RunScanner(resolvers []string, testDomain string, port int, timeoutMs int, concurrency int, e2eConfig *E2EConfig) {
+func RunScanner(resolvers []string, testDomain string, port int, timeoutMs int, concurrency int, expandNeighbors bool, e2eConfig *E2EConfig, useTUI bool) {
 	total := len(resolvers)
 	var scanned int64
 	var working int64
@@ -555,31 +589,37 @@ func RunScanner(resolvers []string, testDomain string, port int, timeoutMs int, 
 	var mu sync.Mutex
 	var compatible []scoredResult
 
-	fmt.Println()
-	fmt.Println("╔══════════════════════════════════════════════════╗")
-	fmt.Println("║              SlipNet DNS Scanner                 ║")
-	fmt.Println("╚══════════════════════════════════════════════════╝")
-	fmt.Println()
-	fmt.Printf("  Domain:      %s\n", testDomain)
-	fmt.Printf("  Resolvers:   %d\n", total)
-	fmt.Printf("  Concurrency: %d\n", concurrency)
-	fmt.Printf("  Timeout:     %dms\n", timeoutMs)
-	fmt.Println()
-
-	// Transparent proxy detection
-	fmt.Print("  Checking for transparent DNS proxy... ")
-	if DetectTransparentProxy(testDomain, 2000) {
-		fmt.Println("DETECTED")
-		fmt.Println("  ⚠ Your ISP intercepts DNS queries. Results may be inaccurate.")
+	updateCh := make(chan ScannerMsg, 100)
+	if useTUI {
+		go RunTUI(testDomain, updateCh)
 	} else {
-		fmt.Println("not detected")
+		fmt.Println()
+		fmt.Println("╔══════════════════════════════════════════════════╗")
+		fmt.Println("║              SlipNet DNS Scanner                 ║")
+		fmt.Println("╚══════════════════════════════════════════════════╝")
+		fmt.Println()
+		fmt.Printf("  Domain:      %s\n", testDomain)
+		fmt.Printf("  Resolvers:   %d\n", total)
+		fmt.Printf("  Concurrency: %d\n", concurrency)
+		fmt.Printf("  Timeout:     %dms\n", timeoutMs)
+		fmt.Println()
+
+		fmt.Print("  Checking for transparent DNS proxy... ")
+		if DetectTransparentProxy(testDomain, 2000) {
+			fmt.Println("DETECTED")
+			fmt.Println("  ⚠ Your ISP intercepts DNS queries. Results may be inaccurate.")
+		} else {
+			fmt.Println("not detected")
+		}
+		fmt.Println()
 	}
-	fmt.Println()
 
 	startTime := time.Now()
 
-	ScanResolvers(resolvers, port, testDomain, timeoutMs, concurrency, func(r ScanResult) {
-		n := atomic.AddInt64(&scanned, 1)
+	ScanResolvers(resolvers, port, testDomain, timeoutMs, concurrency, expandNeighbors, func(r ScanResult, currentScanned int, currentTotal int) {
+		atomic.StoreInt64(&scanned, int64(currentScanned))
+		n := int64(currentScanned)
+
 		switch r.Status {
 		case statusWorking:
 			atomic.AddInt64(&working, 1)
@@ -595,18 +635,34 @@ func RunScanner(resolvers []string, testDomain string, port int, timeoutMs int, 
 			mu.Unlock()
 		}
 
-		// Progress line
-		if n%10 == 0 || n == int64(total) {
-			w := atomic.LoadInt64(&working)
-			fmt.Printf("\r  Scanning... %d/%d  (working: %d)", n, total, w)
+		if useTUI {
+			updateCh <- ScannerMsg{
+				Result:         &r,
+				Scanned:        int(n),
+				Total:          currentTotal,
+				Working:        int(atomic.LoadInt64(&working)),
+				ExpansionQueue: currentTotal - int(n),
+			}
+		} else {
+			if n%10 == 0 || n == int64(currentTotal) {
+				w := atomic.LoadInt64(&working)
+				fmt.Printf("\r  Scanning... %d/%d  (working: %d)", n, currentTotal, w)
+			}
 		}
 	})
 
-	elapsed := time.Since(startTime)
-	fmt.Printf("\r  Scanning... %d/%d  (working: %d)\n", scanned, total, working)
-	fmt.Println()
+	if useTUI {
+		updateCh <- ScannerMsg{Done: true}
+		time.Sleep(100 * time.Millisecond)
+	}
 
-	// Sort by score descending, then by latency ascending
+	elapsed := time.Since(startTime)
+	if !useTUI {
+		fmt.Printf("\r  Scanning... %d/%d  (working: %d)\n", atomic.LoadInt64(&scanned), atomic.LoadInt64(&scanned), atomic.LoadInt64(&working))
+		fmt.Println()
+	}
+
+	mu.Lock()
 	for i := 0; i < len(compatible); i++ {
 		for j := i + 1; j < len(compatible); j++ {
 			if compatible[j].score > compatible[i].score ||
@@ -615,12 +671,12 @@ func RunScanner(resolvers []string, testDomain string, port int, timeoutMs int, 
 			}
 		}
 	}
+	mu.Unlock()
 
-	// Print results
 	fmt.Println("  ── Results ──────────────────────────────────────")
 	fmt.Println()
-	fmt.Printf("  Total: %d | Working: %d | Timeout: %d | Error: %d\n",
-		total, working, timeouts, errors)
+	fmt.Printf("  Total Scanned: %d | Working: %d | Timeout: %d | Error: %d\n",
+		atomic.LoadInt64(&scanned), atomic.LoadInt64(&working), atomic.LoadInt64(&timeouts), atomic.LoadInt64(&errors))
 	fmt.Printf("  Elapsed: %s\n", elapsed.Round(time.Millisecond))
 	fmt.Println()
 
@@ -629,7 +685,6 @@ func RunScanner(resolvers []string, testDomain string, port int, timeoutMs int, 
 		return
 	}
 
-	// Print compatible resolvers
 	fmt.Printf("  Compatible resolvers (%d):\n\n", len(compatible))
 	fmt.Printf("  %-18s %5s  %5s  %s\n", "RESOLVER", "SCORE", "MS", "DETAILS")
 	fmt.Printf("  %-18s %5s  %5s  %s\n", "────────────────", "─────", "─────", "──────────────────────────────")
@@ -646,7 +701,6 @@ func RunScanner(resolvers []string, testDomain string, port int, timeoutMs int, 
 	fmt.Println("  * = fully compatible (6/6)")
 	fmt.Println()
 
-	// Print top resolvers as comma-separated for easy copy
 	var top []string
 	for _, r := range compatible {
 		if r.score == 6 {
@@ -661,7 +715,6 @@ func RunScanner(resolvers []string, testDomain string, port int, timeoutMs int, 
 		fmt.Println()
 	}
 
-	// E2E tunnel testing (if configured)
 	if e2eConfig != nil && len(top) > 0 {
 		runE2EPhase(top, e2eConfig)
 	}
@@ -707,7 +760,6 @@ func runE2EPhase(resolvers []string, config *E2EConfig) {
 
 	e2eElapsed := time.Since(e2eStart)
 
-	// Sort results: passed first (by total latency), then failed
 	for i := 0; i < len(results); i++ {
 		for j := i + 1; j < len(results); j++ {
 			ri, rj := results[i], results[j]
@@ -742,7 +794,6 @@ func runE2EPhase(resolvers []string, config *E2EConfig) {
 	}
 	fmt.Println()
 
-	// Copy-paste ready list of passed resolvers
 	var passedIPs []string
 	for _, r := range results {
 		if r.Success {

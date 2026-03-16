@@ -461,6 +461,10 @@ func runScanCommand(args []string) {
 	var e2eConcurrency = 3
 	var e2eTimeout = 15000
 	var configURI string
+	var countryCode string
+	var sampleCount = 2000
+	var neighborsEnabled bool
+	var useTUI bool = true
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -531,6 +535,23 @@ func runScanCommand(args []string) {
 				configURI = args[i+1]
 				i++
 			}
+		case "--country", "-country":
+			if i+1 < len(args) {
+				countryCode = strings.ToLower(args[i+1])
+				i++
+			}
+		case "--sample", "-sample":
+			if i+1 < len(args) {
+				v, err := strconv.Atoi(args[i+1])
+				if err == nil && v > 0 {
+					sampleCount = v
+				}
+				i++
+			}
+		case "--neighbors", "-neighbors":
+			neighborsEnabled = true
+		case "--no-tui":
+			useTUI = false
 		case "--help", "-help", "-h":
 			printUsage()
 			os.Exit(0)
@@ -558,22 +579,47 @@ func runScanCommand(args []string) {
 	if domain == "" {
 		log.Fatal("scan requires --domain (e.g., --domain t.example.com)")
 	}
-	if ipsFile == "" && singleIP == "" {
-		log.Fatal("scan requires --ips FILE or --ip IP")
-	}
 
 	var resolvers []string
 	if singleIP != "" {
 		resolvers = []string{singleIP}
-	} else {
+	} else if countryCode != "" {
+		cidrData, err := embeddedAssets.ReadFile("assets/geo/" + countryCode + ".cidr")
+		if err != nil {
+			log.Fatalf("Failed to load CIDR data for country %q: %v", countryCode, err)
+		}
+		var ranges []IPRange
+		for _, line := range strings.Split(string(cidrData), "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.HasPrefix(line, "#") {
+				continue
+			}
+			r, err := ParseCIDR(line)
+			if err == nil {
+				ranges = append(ranges, r)
+			}
+		}
+		resolvers = GenerateFromRanges(ranges, sampleCount)
+		if len(resolvers) == 0 {
+			log.Fatalf("No IPs generated for country %q", countryCode)
+		}
+	} else if ipsFile != "" {
 		data, err := os.ReadFile(ipsFile)
 		if err != nil {
 			log.Fatalf("Failed to read IP list file: %v", err)
 		}
 		resolvers = LoadIPList(string(data))
-		if len(resolvers) == 0 {
-			log.Fatal("No valid IP addresses found in file")
+	} else {
+		// Default to embedded resolvers.txt
+		data, err := embeddedAssets.ReadFile("assets/resolvers.txt")
+		if err != nil {
+			log.Fatalf("Failed to read default resolvers: %v", err)
 		}
+		resolvers = LoadIPList(string(data))
+	}
+
+	if len(resolvers) == 0 {
+		log.Fatal("No valid IP addresses found to scan. Use --ips, --ip, --country or default list.")
 	}
 
 	var e2eConfig *E2EConfig
@@ -589,7 +635,7 @@ func runScanCommand(args []string) {
 		}
 	}
 
-	RunScanner(resolvers, domain, port, timeoutMs, concurrency, e2eConfig)
+	RunScanner(resolvers, domain, port, timeoutMs, concurrency, neighborsEnabled, e2eConfig, useTUI)
 }
 
 func printUsage() {
@@ -598,7 +644,7 @@ func printUsage() {
 Usage:
   %s [options] slipnet://BASE64...
   %[2]s [options] slipnet-enc://BASE64...
-  %[2]s scan [options] --domain DOMAIN --ips FILE
+  %[2]s scan [options] --domain DOMAIN
 
 Options (connect):
   --dns HOST[:PORT]   Custom DNS resolver (e.g., --dns 1.1.1.1 or --dns <server-ip>)
@@ -614,8 +660,11 @@ Options (connect):
 
 Options (scan):
   --domain DOMAIN     Tunnel domain to test (required unless --config given)
-  --ips FILE          File with resolver IPs, one per line (or use --ip for single)
+  --ips FILE          File with resolver IPs, one per line
   --ip IP             Single resolver IP to scan
+  --country CODE      Scan random IPs from country CIDR ranges (ir, cn, ru, ir_dns)
+  --sample N          Number of random IPs to sample for --country (default: 2000)
+  --neighbors         Test nearby IPs (/24 subnet) when a working IP is found
   --timeout MS        Per-query timeout in ms (default: 3000)
   --concurrency N     Parallel DNS scans (default: 100)
   --port PORT         DNS port (default: 53)
@@ -623,20 +672,13 @@ Options (scan):
   --pubkey KEY        Server public key for E2E (required with --e2e)
   --e2e-concurrency N Parallel E2E tests (default: 3)
   --e2e-timeout MS    E2E HTTP timeout in ms (default: 15000)
-  --config URI        Extract domain/pubkey/mode from slipnet:// URI (auto-enables E2E)
-
-If no --dns is specified, the client auto-detects the server IP
-when DNS delegation isn't working.
+  --config URI        Extract domain/pubkey/mode from slipnet:// URI
+  --no-tui            Disable TUI and use classic line-based output
 
 Examples:
   %[2]s slipnet://BASE64...
-  %[2]s --utls Chrome_120 slipnet://BASE64...
-  %[2]s --dns 1.1.1.1 slipnet://BASE64...
-  %[2]s --dns <server-ip> --direct --port 9050 slipnet://BASE64...
-  %[2]s --host 0.0.0.0 slipnet://BASE64...
-  %[2]s scan --domain t.example.com --ips resolvers.txt
-  %[2]s scan --domain t.example.com --ip 8.8.8.8
-  %[2]s scan --config slipnet://BASE64... --ips resolvers.txt
-  %[2]s scan --domain t.example.com --ips ips.txt --e2e --pubkey HEXKEY
+  %[2]s scan --domain t.example.com --country ir --neighbors
+  %[2]s scan --config slipnet://BASE64... --country ru
+  %[2]s scan --domain t.example.com --ips resolvers.txt --e2e --pubkey HEXKEY
 `, version, os.Args[0])
 }
