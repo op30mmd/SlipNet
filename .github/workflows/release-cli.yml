@@ -53,8 +53,6 @@ jobs:
             suffix: linux-arm64
             os: ubuntu-latest
             cross: true
-            cc: aarch64-linux-gnu-gcc
-            ar: aarch64-linux-gnu-ar
           - target: x86_64-apple-darwin
             suffix: darwin-amd64
             os: macos-13
@@ -84,24 +82,30 @@ jobs:
         if: runner.os == 'Windows'
         uses: ilammy/setup-nasm@v1
 
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Install cross-compilation tools (Linux ARM64)
         if: matrix.cross
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
+          sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
       - name: Build slipstream-client
         shell: bash
         working-directory: app/src/main/rust/slipstream-rust
         env:
-          CC: ${{ matrix.cc || 'cc' }}
-          AR: ${{ matrix.ar || 'ar' }}
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           CONFIG_ENCRYPTION_KEY: ${{ secrets.CONFIG_ENCRYPTION_KEY }}
         run: |
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             # Prepend Strawberry Perl to PATH to avoid using the incomplete Perl from Git
             export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:/c/Strawberry/c/bin:$PATH"
+          fi
+          if [[ "${{ matrix.cross }}" == "true" ]]; then
+            export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
+            export AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
+            export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
           fi
           cargo build --release --bin slipstream-client \
             --target ${{ matrix.target }} \
