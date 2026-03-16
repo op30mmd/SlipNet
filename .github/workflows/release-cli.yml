@@ -105,9 +105,13 @@ jobs:
             rm -f /usr/bin/link
           fi
           if [[ "${{ matrix.cross }}" == "true" ]]; then
+            # Explicitly set tools for the cc crate and cargo linker
             export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
             export AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
             export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
+            # Also set generic CC/AR just in case for some crates
+            export CC=aarch64-linux-gnu-gcc
+            export AR=aarch64-linux-gnu-ar
           fi
           cargo build --release --bin slipstream-client \
             --target ${{ matrix.target }} \
