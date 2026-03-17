@@ -135,7 +135,7 @@ jobs:
 
   # Build Go CLI with embedded slipstream binary
   build-cli:
-    needs:[build-slipstream, tag]
+    needs: [build-slipstream, tag]  # FIX 1: added missing space after "needs:"
     if: always() && (needs.build-slipstream.result == 'success') && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
       matrix:
@@ -202,8 +202,8 @@ jobs:
           fi
           go build -tags embed_slipstream -trimpath -ldflags="${LDFLAGS}" -o ../slipnet-${{ matrix.suffix }}${{ matrix.ext }} .
 
-      - name: Compress with UPX (Linux/macOS only)
-        if: matrix.goos != 'windows'
+      - name: Compress with UPX (Linux amd64 only)  # FIX 2: scoped to linux-amd64 only
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
         run: |
           sudo apt-get install -y upx-ucl > /dev/null 2>&1
           upx --best --lzma slipnet-${{ matrix.suffix }} || true
@@ -217,7 +217,11 @@ jobs:
   release-cli:
     needs: [tag, build-cli]
     runs-on: ubuntu-latest
-    if: always() && (needs.tag.result == 'success' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'))
+    # FIX 3: added needs.build-cli.result == 'success' so we don't release when builds fail
+    if: >-
+      always() &&
+      needs.build-cli.result == 'success' &&
+      (needs.tag.result == 'success' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'))
     permissions:
       contents: write
 
