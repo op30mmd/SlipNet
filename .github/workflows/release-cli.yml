@@ -122,7 +122,29 @@ jobs:
             sed -i 's/void[ \t]*\*[ \t]*picoquic_packet_loop_v/DWORD WINAPI picoquic_packet_loop_v/g' "$SOCKLOOP"
           fi
 
-      # ── Pre-build picoquic with wincompat.h include path ─────────────
+          # ── FIX: Disable test/sample executables that need getopt.h ──
+          # MSVC doesn't provide getopt.h. The test programs (picoquic_ct,
+          # picohttp_ct, picolog_t) and sample programs include it, but
+          # we only need the library targets. Comment out add_executable
+          # and related calls for these targets.
+          CMAKELISTS="vendor/picoquic/CMakeLists.txt"
+          if [ -f "$CMAKELISTS" ]; then
+            echo ""
+            echo "=== Patching CMakeLists.txt to disable test/sample executables ==="
+            # Targets that require getopt.h (test/sample executables only)
+            for TARGET in picoquic_ct picohttp_ct picolog_t picoquic_sample picohttp_sample; do
+              echo "Disabling target: ${TARGET}"
+              # Comment out any line that references the target by name in a
+              # CMake command (add_executable, target_link_libraries,
+              # target_include_directories, set_target_properties,
+              # add_test, install, etc.)
+              # Uses word-boundary matching so we don't clobber e.g.
+              # picoquic_ct matching inside picoquic_core.
+              sed -i "/${TARGET}/s/^/#DISABLED# /" "$CMAKELISTS"
+            done
+            echo "=== CMakeLists.txt patched ==="
+          fi
+
       - name: Build picoquic
         shell: bash
         working-directory: app/src/main/rust/slipstream-rust
@@ -132,15 +154,6 @@ jobs:
             rm -f /usr/bin/link
             export CMAKE_GENERATOR=Ninja
 
-            # FIX: picotls #includes "wincompat.h" on Windows, but its
-            # CMakeLists.txt doesn't add the directory that contains it
-            # (picotlsvs/picotls/) to the include search path.
-            # We must inject it via CFLAGS/CXXFLAGS BEFORE cmake runs,
-            # so the flag is baked into the generated build system.
-            # The path won't physically exist until FetchContent downloads
-            # picotls during cmake configure, but the compiler only
-            # resolves it later during the build step — by which time
-            # the directory is populated.
             WIN_PWD=$(cygpath -m "$PWD")
             export CFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
             export CXXFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
@@ -158,7 +171,25 @@ jobs:
             exit 1
           fi
 
-      # ── Build the Rust binary ────────────────────────────────────────
+          # ── Verify library artifacts exist ───────────────────────────
+          echo ""
+          echo "=== Checking for picoquic library artifacts ==="
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            LIB_COUNT=$(find .picoquic-build -name "*.lib" -not -path "*/CMakeFiles/*" 2>/dev/null | wc -l)
+            EXT="lib"
+          else
+            LIB_COUNT=$(find .picoquic-build -name "*.a" -not -path "*/CMakeFiles/*" 2>/dev/null | wc -l)
+            EXT="a"
+          fi
+
+          echo "Found ${LIB_COUNT} .${EXT} files in .picoquic-build"
+          find .picoquic-build -name "*.${EXT}" -not -path "*/CMakeFiles/*" 2>/dev/null | head -20
+
+          if [ "$LIB_COUNT" -lt 1 ]; then
+            echo "::error::No picoquic static libraries found in .picoquic-build"
+            exit 1
+          fi
+
       - name: Build slipstream-client
         shell: bash
         working-directory: app/src/main/rust/slipstream-rust
@@ -172,8 +203,6 @@ jobs:
 
             WIN_PWD=$(cygpath -m "$PWD")
             export PICOQUIC_BUILD_DIR="${WIN_PWD}/.picoquic-build"
-            # Keep the same include for any C compilation the cc crate
-            # might do during cargo build (e.g. -sys crate wrappers)
             export CFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
             export CXXFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
           else
