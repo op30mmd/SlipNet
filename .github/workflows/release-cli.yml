@@ -41,7 +41,7 @@ jobs:
 
   # Build slipstream-client for each platform first
   build-slipstream:
-    needs:[tag]
+    needs: [tag]
     if: always() && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
       matrix:
