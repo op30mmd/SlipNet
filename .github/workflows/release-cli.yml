@@ -39,12 +39,11 @@ jobs:
           WITH_V: true
           DEFAULT_BUMP: patch
 
-  # Build slipstream-client for each platform first
   build-slipstream:
     needs: [tag]
     if: always() && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
-      fail-fast: false                          # FIX 5: don't cancel sibling jobs
+      fail-fast: false
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
@@ -97,57 +96,83 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
+      # ── Patch picoquic sources BEFORE building picoquic ──────────────
+      - name: Patch picoquic for MSVC compatibility
+        if: runner.os == 'Windows'
+        shell: bash
+        working-directory: app/src/main/rust/slipstream-rust
+        run: |
+          HEADER="vendor/picoquic/picoquic/picoquic_packet_loop.h"
+          if [ -f "$HEADER" ]; then
+            printf '%s\n' \
+              '#ifdef _MSC_VER' \
+              '#include <BaseTsd.h>' \
+              '#include <windows.h>' \
+              '#ifndef _SSIZE_T_DEFINED' \
+              '#define _SSIZE_T_DEFINED' \
+              'typedef SSIZE_T ssize_t;' \
+              '#endif' \
+              '#endif' > temp_header.h
+            cat "$HEADER" >> temp_header.h
+            mv temp_header.h "$HEADER"
+            sed -i 's/void[ \t]*\*[ \t]*picoquic_packet_loop_v/DWORD WINAPI picoquic_packet_loop_v/g' "$HEADER"
+          fi
+
+          SOCKLOOP="vendor/picoquic/picoquic/sockloop.c"
+          if [ -f "$SOCKLOOP" ]; then
+            sed -i 's/void[ \t]*\*[ \t]*picoquic_packet_loop_v/DWORD WINAPI picoquic_packet_loop_v/g' "$SOCKLOOP"
+          fi
+
+      # ── Pre-build picoquic so artifacts exist for cargo ──────────────
+      - name: Build picoquic
+        shell: bash
+        working-directory: app/src/main/rust/slipstream-rust
+        run: |
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:$PATH"
+            rm -f /usr/bin/link
+            # Force Ninja (single-config) so libs land directly in the
+            # build dir instead of a Release/ subdirectory.
+            export CMAKE_GENERATOR=Ninja
+          fi
+
+          if [[ "${{ matrix.cross }}" == "true" ]]; then
+            export CC=aarch64-linux-gnu-gcc
+            export AR=aarch64-linux-gnu-ar
+          fi
+
+          if [ -f scripts/build_picoquic.sh ]; then
+            bash scripts/build_picoquic.sh
+          else
+            echo "::error::scripts/build_picoquic.sh not found"
+            exit 1
+          fi
+
+      # ── Build the Rust binary ────────────────────────────────────────
       - name: Build slipstream-client
         shell: bash
         working-directory: app/src/main/rust/slipstream-rust
         env:
           CONFIG_ENCRYPTION_KEY: ${{ secrets.CONFIG_ENCRYPTION_KEY }}
         run: |
+          # Point the Rust build.rs at the pre-built picoquic artifacts
           if [[ "$RUNNER_OS" == "Windows" ]]; then
-            # Prepend Strawberry Perl to PATH to avoid using the incomplete Perl from Git.
-            # Intentionally omitting /c/Strawberry/c/bin to prevent CMake from using MinGW GCC instead of MSVC.
             export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:$PATH"
-            # Remove Git Bash linker to ensure MSVC link.exe is used
             rm -f /usr/bin/link
+            export CMAKE_GENERATOR=Ninja
 
-            # picotls fails to compile on Windows with MSVC because it misses the wincompat.h directory
             WIN_PWD=$(cygpath -m "$PWD")
+            export PICOQUIC_BUILD_DIR="${WIN_PWD}/.picoquic-build"
             export CFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
             export CXXFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
-
-            # Patch PicoQUIC for MSVC compatibility (Fixes missing ssize_t and thread proc C2040 mismatched signatures)
-            HEADER="vendor/picoquic/picoquic/picoquic_packet_loop.h"
-            if [ -f "$HEADER" ]; then
-              # FIX 1: replaced heredoc with printf – the indented EOF
-              # delimiter was never matched by bash, swallowing the
-              # rest of the script and producing a syntax error.
-              printf '%s\n' \
-                '#ifdef _MSC_VER' \
-                '#include <BaseTsd.h>' \
-                '#include <windows.h>' \
-                '#ifndef _SSIZE_T_DEFINED' \
-                '#define _SSIZE_T_DEFINED' \
-                'typedef SSIZE_T ssize_t;' \
-                '#endif' \
-                '#endif' > temp_header.h
-              cat "$HEADER" >> temp_header.h
-              mv temp_header.h "$HEADER"
-
-              sed -i 's/void[ \t]*\*[ \t]*picoquic_packet_loop_v/DWORD WINAPI picoquic_packet_loop_v/g' "$HEADER"
-            fi
-
-            SOCKLOOP="vendor/picoquic/picoquic/sockloop.c"
-            if [ -f "$SOCKLOOP" ]; then
-              sed -i 's/void[ \t]*\*[ \t]*picoquic_packet_loop_v/DWORD WINAPI picoquic_packet_loop_v/g' "$SOCKLOOP"
-            fi
+          else
+            export PICOQUIC_BUILD_DIR="$PWD/.picoquic-build"
           fi
 
           if [[ "${{ matrix.cross }}" == "true" ]]; then
-            # Explicitly set tools for the cc crate and cargo linker
             export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
             export AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar
             export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-            # Also set generic CC/AR just in case for some crates
             export CC=aarch64-linux-gnu-gcc
             export AR=aarch64-linux-gnu-ar
           fi
@@ -162,12 +187,11 @@ jobs:
           name: slipstream-${{ matrix.suffix }}
           path: app/src/main/rust/slipstream-rust/target/${{ matrix.target }}/release/slipstream-client${{ matrix.ext }}
 
-  # Build Go CLI with embedded slipstream binary
   build-cli:
     needs: [build-slipstream, tag]
     if: always() && (needs.build-slipstream.result == 'success') && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
-      fail-fast: false                          # FIX 5
+      fail-fast: false
       matrix:
         include:
           - goos: darwin
@@ -215,7 +239,7 @@ jobs:
 
       - name: Embed slipstream binary
         run: |
-          mkdir -p cli/embedded                  # FIX 3: ensure dir exists
+          mkdir -p cli/embedded
           cp ./slipstream-download/slipstream-client${{ matrix.slipstream_ext }} cli/embedded/slipstream-client
 
       - name: Build
@@ -233,8 +257,6 @@ jobs:
           fi
           go build -tags embed_slipstream -trimpath -ldflags="${LDFLAGS}" -o ../slipnet-${{ matrix.suffix }}${{ matrix.ext }} .
 
-      # FIX 4: UPX from apt only reliably handles Linux ELF binaries;
-      # macOS Mach-O (especially arm64) is unsupported by the distro build.
       - name: Compress with UPX (Linux only)
         if: matrix.goos == 'linux'
         run: |
@@ -250,8 +272,6 @@ jobs:
   release-cli:
     needs: [tag, build-cli]
     runs-on: ubuntu-latest
-    # FIX 2: also gate on build-cli success so we never publish a
-    # release with missing or zero artifacts.
     if: >-
       always() &&
       needs.build-cli.result == 'success' &&
