@@ -96,7 +96,6 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
 
-      # ── Patch picoquic sources BEFORE building picoquic ──────────────
       - name: Patch picoquic for MSVC compatibility
         if: runner.os == 'Windows'
         shell: bash
@@ -123,7 +122,7 @@ jobs:
             sed -i 's/void[ \t]*\*[ \t]*picoquic_packet_loop_v/DWORD WINAPI picoquic_packet_loop_v/g' "$SOCKLOOP"
           fi
 
-      # ── Pre-build picoquic so artifacts exist for cargo ──────────────
+      # ── Pre-build picoquic with wincompat.h include path ─────────────
       - name: Build picoquic
         shell: bash
         working-directory: app/src/main/rust/slipstream-rust
@@ -131,9 +130,20 @@ jobs:
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:$PATH"
             rm -f /usr/bin/link
-            # Force Ninja (single-config) so libs land directly in the
-            # build dir instead of a Release/ subdirectory.
             export CMAKE_GENERATOR=Ninja
+
+            # FIX: picotls #includes "wincompat.h" on Windows, but its
+            # CMakeLists.txt doesn't add the directory that contains it
+            # (picotlsvs/picotls/) to the include search path.
+            # We must inject it via CFLAGS/CXXFLAGS BEFORE cmake runs,
+            # so the flag is baked into the generated build system.
+            # The path won't physically exist until FetchContent downloads
+            # picotls during cmake configure, but the compiler only
+            # resolves it later during the build step — by which time
+            # the directory is populated.
+            WIN_PWD=$(cygpath -m "$PWD")
+            export CFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
+            export CXXFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
           fi
 
           if [[ "${{ matrix.cross }}" == "true" ]]; then
@@ -155,7 +165,6 @@ jobs:
         env:
           CONFIG_ENCRYPTION_KEY: ${{ secrets.CONFIG_ENCRYPTION_KEY }}
         run: |
-          # Point the Rust build.rs at the pre-built picoquic artifacts
           if [[ "$RUNNER_OS" == "Windows" ]]; then
             export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:$PATH"
             rm -f /usr/bin/link
@@ -163,6 +172,8 @@ jobs:
 
             WIN_PWD=$(cygpath -m "$PWD")
             export PICOQUIC_BUILD_DIR="${WIN_PWD}/.picoquic-build"
+            # Keep the same include for any C compilation the cc crate
+            # might do during cargo build (e.g. -sys crate wrappers)
             export CFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
             export CXXFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
           else
