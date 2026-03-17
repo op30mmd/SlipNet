@@ -44,6 +44,7 @@ jobs:
     needs: [tag]
     if: always() && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
+      fail-fast: false                          # FIX 5: don't cancel sibling jobs
       matrix:
         include:
           - target: x86_64-unknown-linux-gnu
@@ -108,37 +109,39 @@ jobs:
             export PATH="/c/Strawberry/perl/site/bin:/c/Strawberry/perl/bin:$PATH"
             # Remove Git Bash linker to ensure MSVC link.exe is used
             rm -f /usr/bin/link
-            
+
             # picotls fails to compile on Windows with MSVC because it misses the wincompat.h directory
             WIN_PWD=$(cygpath -m "$PWD")
             export CFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
             export CXXFLAGS="-I${WIN_PWD}/.picoquic-build/_deps/picotls-src/picotlsvs/picotls"
-            
+
             # Patch PicoQUIC for MSVC compatibility (Fixes missing ssize_t and thread proc C2040 mismatched signatures)
             HEADER="vendor/picoquic/picoquic/picoquic_packet_loop.h"
             if [ -f "$HEADER" ]; then
-              cat << 'EOF' > temp_header.h
-              #ifdef _MSC_VER
-              #include <BaseTsd.h>
-              #include <windows.h>
-              #ifndef _SSIZE_T_DEFINED
-              #define _SSIZE_T_DEFINED
-              typedef SSIZE_T ssize_t;
-              #endif
-              #endif
-              EOF
+              # FIX 1: replaced heredoc with printf – the indented EOF
+              # delimiter was never matched by bash, swallowing the
+              # rest of the script and producing a syntax error.
+              printf '%s\n' \
+                '#ifdef _MSC_VER' \
+                '#include <BaseTsd.h>' \
+                '#include <windows.h>' \
+                '#ifndef _SSIZE_T_DEFINED' \
+                '#define _SSIZE_T_DEFINED' \
+                'typedef SSIZE_T ssize_t;' \
+                '#endif' \
+                '#endif' > temp_header.h
               cat "$HEADER" >> temp_header.h
               mv temp_header.h "$HEADER"
-              
+
               sed -i 's/void[ \t]*\*[ \t]*picoquic_packet_loop_v/DWORD WINAPI picoquic_packet_loop_v/g' "$HEADER"
             fi
-            
+
             SOCKLOOP="vendor/picoquic/picoquic/sockloop.c"
             if [ -f "$SOCKLOOP" ]; then
               sed -i 's/void[ \t]*\*[ \t]*picoquic_packet_loop_v/DWORD WINAPI picoquic_packet_loop_v/g' "$SOCKLOOP"
             fi
           fi
-          
+
           if [[ "${{ matrix.cross }}" == "true" ]]; then
             # Explicitly set tools for the cc crate and cargo linker
             export CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
@@ -148,7 +151,7 @@ jobs:
             export CC=aarch64-linux-gnu-gcc
             export AR=aarch64-linux-gnu-ar
           fi
-          
+
           cargo build --release --bin slipstream-client \
             --target ${{ matrix.target }} \
             --features openssl-vendored,picoquic-minimal-build
@@ -164,6 +167,7 @@ jobs:
     needs: [build-slipstream, tag]
     if: always() && (needs.build-slipstream.result == 'success') && (needs.tag.result == 'success' || needs.tag.result == 'skipped')
     strategy:
+      fail-fast: false                          # FIX 5
       matrix:
         include:
           - goos: darwin
@@ -211,6 +215,7 @@ jobs:
 
       - name: Embed slipstream binary
         run: |
+          mkdir -p cli/embedded                  # FIX 3: ensure dir exists
           cp ./slipstream-download/slipstream-client${{ matrix.slipstream_ext }} cli/embedded/slipstream-client
 
       - name: Build
@@ -228,8 +233,10 @@ jobs:
           fi
           go build -tags embed_slipstream -trimpath -ldflags="${LDFLAGS}" -o ../slipnet-${{ matrix.suffix }}${{ matrix.ext }} .
 
-      - name: Compress with UPX (Linux/macOS only)
-        if: matrix.goos != 'windows'
+      # FIX 4: UPX from apt only reliably handles Linux ELF binaries;
+      # macOS Mach-O (especially arm64) is unsupported by the distro build.
+      - name: Compress with UPX (Linux only)
+        if: matrix.goos == 'linux'
         run: |
           sudo apt-get install -y upx-ucl > /dev/null 2>&1
           upx --best --lzma slipnet-${{ matrix.suffix }} || true
@@ -243,7 +250,14 @@ jobs:
   release-cli:
     needs: [tag, build-cli]
     runs-on: ubuntu-latest
-    if: always() && (needs.tag.result == 'success' || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'))
+    # FIX 2: also gate on build-cli success so we never publish a
+    # release with missing or zero artifacts.
+    if: >-
+      always() &&
+      needs.build-cli.result == 'success' &&
+      (needs.tag.result == 'success' ||
+       startsWith(github.ref, 'refs/tags/v') ||
+       (github.event_name == 'workflow_dispatch' && github.event.inputs.create_release == 'true'))
     permissions:
       contents: write
 
